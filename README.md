@@ -1,84 +1,108 @@
-# 🎙️ Voice Shopping Assistant with Neural Audio Enhancement & 1-Click Cart Dispatch
+# Voice Shopping Assistant
 
-A state-of-the-art, hands-free voice shopping assistant built with **PyQt6**, **FastAPI**, **Gemini Multimodal Flash**, **Silero VAD**, **noisereduce**, and **Playwright**.
-
----
-
-## 🌟 Key Capabilities
-
-1. **6-Stage Neural & DSP Audio Preprocessing:**
-   * **Stage 1 (Decode):** FFmpeg conversion to 16kHz mono float32 PCM.
-   * **Stage 2 (Bandpass Filter):** 4th-order Butterworth filter (300 Hz – 7,500 Hz speech formant isolation).
-   * **Stage 3 (Spectral Denoising):** Spectral Gating with attenuation limit (`prop_decrease=0.75`) preserving fragile consonants (*"t"*, *"k"*, *"f"*, *"s"*).
-   * **Stage 4 (Silero VAD):** Deep neural speech timestamp extraction, trimming ~50% background silence and room reverberation.
-   * **Stage 5 (AGC Normalization):** Automatic Gain Control normalized to -18.0 dBFS Studio RMS with ±0.95 Peak Limiter.
-   * **Stage 6 (Domain Lexicon Grounding):** Gemini Flash multimodal parsing grounded with 500+ global & regional grocery items.
-
-2. **Hands-Free Streaming VAD Endpointing & Spoken Voice Read-Back (TTS):**
-   * Real-time streaming VAD ($P_{\text{speech}} > 0.25$ + RMS energy fallback) automatically stops recording when silence exceeds **800ms** (zero-touch).
-   * Studio-grade neural text-to-speech (`edge-tts` with `gTTS` fallback) reads back cart modifications aloud with synchronized Siri Orb pulse animations.
-
-3. **Bespoke Apple HIG & Google Material 3 UI/UX:**
-   * Pure Obsidian Canvas (`#07080A`), 60 FPS **Siri Living Orb** reacting dynamically to sound energy, and structured Bento Aisle Grid.
-
-4. **Multi-Retailer Direct Product & Cart Integrations:**
-   * **↗ Direct 1-Click Product Links:** Maps recognized items to verified FMCG identifiers on **Amazon Fresh**, **Blinkit**, **Zepto**, **Swiggy Instamart**, and **BigBasket**.
-   * **📋 Clipboard Order Generator & Search Grounding.**
+A hands-free voice-driven shopping list manager with audio preprocessing, speech-to-intent grounding, neural speech feedback, and direct retailer product resolution.
 
 ---
 
-## 🏛️ Engineering Approach (200-Word Summary)
+## Overview
 
-> **Engineering Approach:**  
-> Standard speech-to-text systems fail on commodity microphones due to high-frequency roll-off, ambient noise, and acoustic blending of brand names with phonetic priors. To solve this, we engineered a deterministic 6-stage audio pipeline combined with multimodal domain grounding. Raw audio is converted to 16kHz PCM, bandpass-filtered (300–7500 Hz), and cleaned via attenuation-limited spectral gating (`prop_decrease=0.75`) to suppress room noise without clipping weak consonants. Silero VAD provides real-time streaming endpointing (auto-stopping after 800ms silence with acoustic energy fallback) and trims dead air, followed by AGC leveling to -18.0 dBFS RMS. The enhanced audio is ingested directly by Gemini Flash, primed with an extensive grocery taxonomy, brand matrix (Amul, Kerrygold, Oatly, Tata), and compound intent parsing rules. For e-commerce execution, recognized items are mapped to verified FMCG identifiers, enabling 1-click direct product staging across Amazon Fresh and quick-commerce platforms (Blinkit, Zepto, Swiggy Instamart). Neural text-to-speech speaks back confirmations in real time. The native PyQt6 interface provides an Apple-inspired Siri Living Orb and fluid Bento board with zero-touch operation.
+The application processes natural voice commands to manage a categorised grocery list, provide contextual substitutions and seasonal recommendations, and generate direct 1-click links to major e-commerce platforms. Built using FastAPI, PyQt6, Silero VAD, and Google Gemini Multimodal APIs.
 
 ---
 
-## 🚀 Quick Start & Installation
+## Engineering Approach (200-Word Summary)
 
-### 1. Prerequisites
-* Python 3.10+
-* FFmpeg installed on your system (`sudo apt install ffmpeg` or `brew install ffmpeg`)
-* Google AI Studio Gemini API Key (Free-Tier)
+Standard speech-to-text systems fail on commodity microphones due to high-frequency roll-off, ambient noise, and acoustic blending of brand names with phonetic priors. To solve this, we engineered a deterministic 6-stage audio pipeline combined with multimodal domain grounding. Raw audio is converted to 16kHz PCM, bandpass-filtered (300 to 7500 Hz), and cleaned via attenuation-limited spectral gating (`prop_decrease=0.75`) to suppress room noise without clipping weak consonants. Silero VAD provides real-time streaming endpointing (auto-stopping after 800ms silence with acoustic energy fallback) and trims dead air, followed by AGC leveling to -18.0 dBFS RMS. The enhanced audio is ingested directly by Gemini Flash, primed with an extensive grocery taxonomy, brand matrix (Amul, Kerrygold, Oatly, Tata), and compound intent parsing rules. For e-commerce execution, recognized items are mapped to verified FMCG identifiers, enabling 1-click direct product staging across Amazon Fresh and quick-commerce platforms (Blinkit, Zepto, Swiggy Instamart). Neural text-to-speech speaks back confirmations in real time. The native PyQt6 interface provides an Apple-inspired Siri Living Orb and fluid Bento board with zero-touch operation.
 
-### 2. Setup Environment
+---
+
+## Core System Architecture
+
+### 1. Audio Processing Pipeline
+* **Format Conversion:** Normalises arbitrary browser and desktop audio to 16kHz mono 32-bit float PCM via FFmpeg.
+* **Formant Isolation:** 4th-order Butterworth bandpass filter spanning 300 Hz to 7500 Hz to isolate fundamental speech frequencies.
+* **Spectral Gating:** Noise reduction with controlled attenuation (`prop_decrease=0.75`) to avoid artifact introduction in quiet phonemes.
+* **Voice Activity Detection:** Deep learning VAD via Silero to strip leading/trailing silence and segment voiced speech.
+* **Dynamic Normalisation:** Automatic Gain Control targeting -18 dBFS RMS with peak limiting at 0.95.
+
+### 2. Hands-Free Conversational Endpointing
+* Real-time 32ms audio buffer streaming into Silero VAD.
+* Dual-condition trigger combining neural voice probability ($P > 0.25$) and RMS energy thresholds for sensitive microphone pickup.
+* Automatic stream closure after 800ms of sustained silence following active speech.
+
+### 3. Speech Synthesis Feedback
+* Asynchronous neural text-to-speech synthesis using Edge-TTS with fallback to gTTS.
+* Spoken read-back of cart modifications in user-selected locale (en-IN, en-US, en-GB, hi-IN, es-ES).
+
+### 4. Retailer Resolution
+* Direct catalog mapping for FMCG items to unique product identifiers.
+* 1-click deep link resolution for Amazon Fresh, Blinkit, Zepto, Swiggy Instamart, and BigBasket.
+* Structured clipboard export for offline review.
+
+---
+
+## Installation
+
+### Prerequisites
+* Python 3.10 or higher
+* FFmpeg installed on system PATH
+* Google AI Studio Gemini API Key
+
+### Setup
 ```bash
-# Clone repository
-git clone <your-repo-url>
+git clone <repository-url>
 cd unthinkable
 
-# Create virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install dependencies
 pip install -r requirements.txt
-playwright install chromium
 ```
 
-### 3. Configure API Key
+### Environment Configuration
 Create a `.env` file in the root directory:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-### 4. Launch Native Desktop App
+---
+
+## Usage
+
+### Desktop Application
+Run the PyQt6 interface:
 ```bash
-.venv/bin/python desktop_app.py
+python desktop_app.py
 ```
 
-### 5. Launch Web App Backend
+### Web Application & REST API
+Start the FastAPI server:
 ```bash
-.venv/bin/python -m uvicorn app:app --host 127.0.0.1 --port 8000
+python -m uvicorn app:app --host 127.0.0.1 --port 8000
 ```
-Visit `http://localhost:8000` in your web browser.
+Open `http://localhost:8000` in a modern web browser.
 
 ---
 
-## 📊 Evaluation & Verification
+## Verification Matrix
 
-| Voice Command | Raw Audio Challenge | Enhanced Audio Pipeline | Extracted Action | Retailer Output |
+| Voice Input | Acoustic Challenge | Enhancement Applied | Resolved Entity | Store Action |
 |---|---|---|---|---|
-| *"Add 2 jackfruit"* | Blended fast speech (`/tuː-dʒæ-fruːt/`) misheard as *"fruit juice"* | Silero VAD + 3.2kHz peaking EQ + Catalog Lexicon | `Produce`: Jackfruit (Qty: 2.0) | Verified in Aisle Bento |
-| *"Add 2 packs of Kerrygold butter and a bottle of Oatly oat milk"* | Multi-brand compound sentence | Spectral Gating + AGC Normalizer | `Dairy & Eggs`: Kerrygold Butter (Qty: 2), Oatly Oat Milk (Qty: 1) | **⚡ Amazon Cart**: Staged directly via ASIN protocol |
-| *"Add 1 kg potatoes and find Colgate toothpaste under $5"* | Mixed Add + Search intent | 6-Stage Enhancement + Open Food Facts API | `Produce`: Potatoes (1.0 kg), Live Search: Colgate Toothpaste ($4.50) | **🤖 Playwright Agent**: Automated click into Blinkit / Zepto |
+| *"Add 2 jackfruit"* | Fast connected speech | Bandpass filter + Silero VAD | Produce: Jackfruit (Qty: 2) | Direct product link |
+| *"Add 2 packs of Kerrygold butter and oat milk"* | Multi-brand compound phrase | Spectral gating + AGC | Dairy: Kerrygold Butter (Qty: 2), Oat Milk (Qty: 1) | FMCG ASIN mapping |
+| *"Add 1 kg potatoes and find Colgate toothpaste under $5"* | Mixed add and search intents | Gemini schema parsing | Produce: Potatoes (1 kg), Search: Colgate Toothpaste | Open Food Facts API lookup |
+
+---
+
+## Project Structure
+
+```text
+├── app.py                   # FastAPI backend, 6-stage audio DSP, Open Food Facts API & Gemini grounding
+├── desktop_app.py           # Native PyQt6 desktop GUI (Hands-free VAD, Siri Orb, Bento shopping board)
+├── retailer_cart_service.py # Direct retailer product resolution and deep-linking
+├── tts_service.py           # Neural text-to-speech engine for spoken cart read-backs
+├── static/                  # Responsive Web UI (index.html, manifest.json)
+├── requirements.txt         # Pinned production dependencies
+├── .gitignore               # Standard exclusions for environment, caches, and logs
+└── README.md                # System documentation and engineering summary
+```
