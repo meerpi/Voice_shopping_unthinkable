@@ -49,6 +49,7 @@ ASIN_DATABASE = {
     "chips": {"asin": "B08B3SCQ8T", "title": "Lay's Classic Salted Potato Chips 115g"},
     "jackfruit": {"asin": "B07X8M7J9W", "title": "Nature's Charm Young Green Jackfruit Canned 565g"},
     "mangoes": {"asin": "B087N5P4H1", "title": "Alphonso Mango Pulp / Slices 850g"}
+    # Note: Add more FMCG / Grocery ASIN mappings as catalog expands
 }
 
 def generate_amazon_remote_cart_url(cart_items: List[Dict], locale: str = "in") -> Tuple[str, List[Dict]]:
