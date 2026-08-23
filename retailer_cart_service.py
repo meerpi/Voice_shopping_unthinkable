@@ -1,6 +1,6 @@
 import os
-import time
 import urllib.parse
+import webbrowser
 from typing import List, Dict, Tuple
 
 ASIN_DATABASE = {
@@ -53,169 +53,40 @@ ASIN_DATABASE = {
     # Note: Add more FMCG / Grocery ASIN mappings as catalog expands
 }
 
-def generate_amazon_remote_cart_url(cart_items: List[Dict], locale: str = "in") -> Tuple[str, List[Dict]]:
-    matched_items = []
-    query_params = []
-    idx = 1
+def get_product_direct_url(item: Dict, store_name: str = "Amazon Fresh") -> str:
+    raw_name = item.get("name", "").lower().strip()
+    base_name = item.get("base_name", raw_name).lower().strip()
+    brand = (item.get("brand_hint") or "").lower().strip()
     
-    for item in cart_items:
-        raw_name = item.get("name", "").lower().strip()
-        base_name = item.get("base_name", raw_name).lower().strip()
-        brand = (item.get("brand_hint") or "").lower().strip()
-        qty = max(1, int(round(item.get("quantity", 1.0))))
-        
-        matched_asin, matched_title = None, None
-        if brand and f"{brand} {base_name}" in ASIN_DATABASE:
-            matched_asin = ASIN_DATABASE[f"{brand} {base_name}"]["asin"]
-            matched_title = ASIN_DATABASE[f"{brand} {base_name}"]["title"]
-        elif raw_name in ASIN_DATABASE:
-            matched_asin = ASIN_DATABASE[raw_name]["asin"]
-            matched_title = ASIN_DATABASE[raw_name]["title"]
-        elif base_name in ASIN_DATABASE:
-            matched_asin = ASIN_DATABASE[base_name]["asin"]
-            matched_title = ASIN_DATABASE[base_name]["title"]
-        else:
-            for key, val in ASIN_DATABASE.items():
-                if key in raw_name or raw_name in key or key in base_name or base_name in key:
-                    matched_asin = val["asin"]
-                    matched_title = val["title"]
-                    break
-        
-        if matched_asin:
-            query_params.append(f"ASIN.{idx}={matched_asin}&Quantity.{idx}={qty}")
-            matched_items.append({
-                "name": item.get("name"),
-                "asin": matched_asin,
-                "title": matched_title,
-                "quantity": qty
-            })
-            idx += 1
-            
-    if query_params:
-        domain = "amazon.in" if locale == "in" else "amazon.com"
-        return f"https://www.{domain}/gp/aws/cart/add.html?{'&'.join(query_params)}", matched_items
+    matched_asin = None
+    if brand and f"{brand} {base_name}" in ASIN_DATABASE:
+        matched_asin = ASIN_DATABASE[f"{brand} {base_name}"]["asin"]
+    elif raw_name in ASIN_DATABASE:
+        matched_asin = ASIN_DATABASE[raw_name]["asin"]
+    elif base_name in ASIN_DATABASE:
+        matched_asin = ASIN_DATABASE[base_name]["asin"]
     else:
-        encoded = urllib.parse.quote_plus(" ".join([itm.get("name", "") for itm in cart_items]))
-        return f"https://www.amazon.in/s?k={encoded}", []
+        for key, val in ASIN_DATABASE.items():
+            if key in raw_name or raw_name in key or key in base_name or base_name in key:
+                matched_asin = val["asin"]
+                break
 
-def generate_walmart_remote_cart_url(cart_items: List[Dict]) -> str:
-    items_param = []
+    encoded = urllib.parse.quote_plus(item.get("name", ""))
+    if "Amazon" in store_name:
+        if matched_asin:
+            return f"https://www.amazon.in/dp/{matched_asin}"
+        return f"https://www.amazon.in/s?k={encoded}&i=nowstore"
+    elif "Blinkit" in store_name:
+        return f"https://blinkit.com/s/?q={encoded}"
+    elif "Zepto" in store_name:
+        return f"https://www.zeptonow.com/search?q={encoded}"
+    elif "Instamart" in store_name or "Swiggy" in store_name:
+        return f"https://www.swiggy.com/instamart/search?query={encoded}"
+    elif "BigBasket" in store_name:
+        return f"https://www.bigbasket.com/ps/?q={encoded}"
+    return f"https://www.google.com/search?q=buy+{encoded}"
+
+def open_all_items_in_browser(cart_items: List[Dict], store_name: str = "Amazon Fresh"):
     for item in cart_items:
-        item_id = str(abs(hash(item.get("name", ""))) % 90000000 + 10000000)
-        qty = max(1, int(round(item.get("quantity", 1.0))))
-        items_param.append(f"{item_id}|{qty}")
-    return f"https://www.walmart.com/sc/cart/addToCart?items={','.join(items_param)}"
-
-def run_playwright_quick_commerce_cart(store_name: str, cart_items: List[Dict], progress_callback=None) -> Dict:
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError:
-        return {"success": False, "error": "Playwright is not installed."}
-    
-    results = []
-    with sync_playwright() as p:
-        if progress_callback:
-            progress_callback(f"Launching browser for {store_name}...")
-        
-        chrome_path = "/usr/bin/google-chrome-stable" if os.path.exists("/usr/bin/google-chrome-stable") else None
-        launch_kwargs = {"headless": False, "slow_mo": 300}
-        if chrome_path:
-            launch_kwargs["executable_path"] = chrome_path
-            
-        browser = p.chromium.launch(**launch_kwargs)
-        context = browser.new_context(
-            viewport={"width": 1280, "height": 860},
-            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-        )
-        page = context.new_page()
-        
-        try:
-            for i, item in enumerate(cart_items):
-                name = item.get("name", "")
-                encoded = urllib.parse.quote_plus(name)
-                
-                if progress_callback:
-                    progress_callback(f"Adding ({i+1}/{len(cart_items)}): {name} on {store_name}...")
-                
-                # ── 1. AMAZON FRESH / AMAZON ──
-                if "Amazon" in store_name:
-                    page.goto(f"https://www.amazon.in/s?k={encoded}&i=nowstore", wait_until="domcontentloaded", timeout=15000)
-                    page.wait_for_timeout(1500)
-                    add_btn = page.locator('button:has-text("Add to Cart"), input[name="submit.addToCart"], span:has-text("Add to Cart")').first
-                    if add_btn.is_visible(timeout=3000):
-                        add_btn.click()
-                        results.append({"name": name, "status": "Added to Amazon Cart"})
-                    else:
-                        results.append({"name": name, "status": "Searched"})
-
-                # ── 2. BLINKIT ──
-                elif "Blinkit" in store_name:
-                    page.goto(f"https://blinkit.com/s/?q={encoded}", wait_until="domcontentloaded", timeout=15000)
-                    page.wait_for_timeout(1500)
-                    add_btn = page.locator('button:has-text("ADD"), div[role="button"]:has-text("ADD"), div:has-text("ADD")').first
-                    if add_btn.is_visible(timeout=3000):
-                        add_btn.click()
-                        results.append({"name": name, "status": "Added to Blinkit Cart"})
-                    else:
-                        results.append({"name": name, "status": "Searched"})
-                        
-                # ── 3. ZEPTO ──
-                elif "Zepto" in store_name:
-                    page.goto(f"https://www.zeptonow.com/search?q={encoded}", wait_until="domcontentloaded", timeout=15000)
-                    page.wait_for_timeout(1500)
-                    add_btn = page.locator('button:has-text("Add"), button:has-text("ADD"), span:has-text("Add")').first
-                    if add_btn.is_visible(timeout=3000):
-                        add_btn.click()
-                        results.append({"name": name, "status": "Added to Zepto Cart"})
-                    else:
-                        results.append({"name": name, "status": "Searched"})
-                        
-                # ── 4. SWIGGY INSTAMART ──
-                elif "Instamart" in store_name or "Swiggy" in store_name:
-                    page.goto(f"https://www.swiggy.com/instamart/search?query={encoded}", wait_until="domcontentloaded", timeout=15000)
-                    page.wait_for_timeout(1500)
-                    add_btn = page.locator('div:has-text("ADD"), button:has-text("ADD")').first
-                    if add_btn.is_visible(timeout=3000):
-                        add_btn.click()
-                        results.append({"name": name, "status": "Added to Instamart Cart"})
-                    else:
-                        results.append({"name": name, "status": "Searched"})
-                        
-                # ── 5. BIGBASKET ──
-                elif "BigBasket" in store_name:
-                    page.goto(f"https://www.bigbasket.com/ps/?q={encoded}", wait_until="domcontentloaded", timeout=15000)
-                    page.wait_for_timeout(1500)
-                    add_btn = page.locator('button:has-text("Add"), button:has-text("ADD")').first
-                    if add_btn.is_visible(timeout=3000):
-                        add_btn.click()
-                        results.append({"name": name, "status": "Added to BigBasket Cart"})
-                    else:
-                        results.append({"name": name, "status": "Searched"})
-
-            # Navigate to final cart screen
-            if progress_callback:
-                progress_callback(f"Opening final cart on {store_name}...")
-                
-            if "Amazon" in store_name:
-                page.goto("https://www.amazon.in/gp/cart/view.html")
-            elif "Blinkit" in store_name:
-                page.goto("https://blinkit.com/cart")
-            elif "Zepto" in store_name:
-                page.goto("https://www.zeptonow.com/cart")
-            elif "BigBasket" in store_name:
-                page.goto("https://www.bigbasket.com/basket/")
-            elif "Instamart" in store_name:
-                page.goto("https://www.swiggy.com/instamart")
-                
-            if progress_callback:
-                progress_callback(f"✅ Items staged in {store_name} cart! Ready for checkout.")
-            
-            # Keep browser alive so user can review and pay
-            for _ in range(30):
-                if page.is_closed():
-                    break
-                page.wait_for_timeout(1000)
-                
-            return {"success": True, "items": results}
-        except Exception as err:
-            return {"success": False, "error": str(err)}
+        url = get_product_direct_url(item, store_name=store_name)
+        webbrowser.open_new_tab(url)

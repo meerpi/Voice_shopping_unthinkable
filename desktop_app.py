@@ -28,9 +28,8 @@ from app import (
 )
 
 from retailer_cart_service import (
-    generate_amazon_remote_cart_url,
-    generate_walmart_remote_cart_url,
-    run_playwright_quick_commerce_cart
+    get_product_direct_url,
+    open_all_items_in_browser
 )
 
 from tts_service import speak_text_sync
@@ -45,8 +44,6 @@ from PyQt6.QtGui import (
     QColor, QFont, QPainter, QBrush, QLinearGradient, QRadialGradient,
     QPen, QPainterPath
 )
-
-# ─── MINIMALIST PRO DESIGN SYSTEM (Raycast / Apple Pro Aesthetic) ─────────────
 
 PRO_STYLE = """
 QMainWindow {
@@ -63,7 +60,6 @@ QWidget#masterContent, QScrollArea#masterScroll, QScrollArea#masterScroll > QWid
     border: none;
 }
 
-/* Bento Surface Containers */
 QFrame#heroPanel {
     background-color: #101216;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -88,7 +84,6 @@ QFrame#productCard {
     border-radius: 12px;
 }
 
-/* Typography */
 QLabel#brandTitle {
     font-size: 24px;
     font-weight: 700;
@@ -122,7 +117,6 @@ QLabel#transcriptHero {
     line-height: 1.4;
 }
 
-/* Inputs & Selectors */
 QLineEdit#commandInput {
     background-color: #16181F;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -157,7 +151,6 @@ QComboBox QAbstractItemView {
     padding: 4px;
 }
 
-/* Action Controls */
 QPushButton#primarySendBtn {
     background-color: #FFFFFF;
     color: #08090C;
@@ -186,12 +179,25 @@ QPushButton#clearCartBtn:hover {
     background-color: rgba(239, 68, 68, 0.06);
 }
 
+QPushButton#storeActionBtn {
+    background-color: #FF9900;
+    color: #08090C;
+    border: none;
+    border-radius: 10px;
+    padding: 7px 14px;
+    font-weight: 700;
+    font-size: 11px;
+}
+QPushButton#storeActionBtn:hover {
+    background-color: #FFAA2B;
+}
+
 QPushButton#toolBtn {
     background-color: #16181F;
     color: #D1D5DB;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 10px;
-    padding: 6px 12px;
+    padding: 7px 12px;
     font-weight: 500;
     font-size: 11px;
 }
@@ -199,19 +205,6 @@ QPushButton#toolBtn:hover {
     background-color: #20242E;
     border-color: rgba(255, 255, 255, 0.18);
     color: #FFFFFF;
-}
-
-QPushButton#amazonBtn {
-    background-color: #FF9900;
-    color: #08090C;
-    border: none;
-    border-radius: 10px;
-    padding: 6px 12px;
-    font-weight: 600;
-    font-size: 11px;
-}
-QPushButton#amazonBtn:hover {
-    background-color: #FFAA2B;
 }
 
 QPushButton#suggestionPill {
@@ -290,7 +283,6 @@ class SiriLivingOrbWidget(QWidget):
         center_y = self.height() / 2.0
         base_r = 42.0 + (self.energy * 12.0)
 
-        # Ambient Glow
         if self.is_recording or self.is_speaking:
             aura = QRadialGradient(center_x, center_y, base_r * 1.5)
             if self.is_speaking:
@@ -304,7 +296,6 @@ class SiriLivingOrbWidget(QWidget):
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawEllipse(QPointF(center_x, center_y), base_r * 1.5, base_r * 1.5)
 
-        # Wave Contour
         path = QPainterPath()
         points = 64
         for i in range(points):
@@ -364,7 +355,7 @@ class HandsFreeStreamingAudioThread(QThread):
         speech_currently_active = False
         consecutive_silence = 0
         total_frames = 0
-        max_total_frames = int(7.0 * self.sample_rate / self.chunk_size)  # 7s max timeout guard
+        max_total_frames = int(7.0 * self.sample_rate / self.chunk_size)
 
         try:
             with sd.InputStream(samplerate=self.sample_rate, channels=1, dtype='float32', blocksize=self.chunk_size) as stream:
@@ -381,7 +372,6 @@ class HandsFreeStreamingAudioThread(QThread):
                         with torch.no_grad():
                             prob = self.vad_model(torch.from_numpy(pcm).float(), self.sample_rate).item()
 
-                    # Trigger on either VAD > 0.25 OR RMS > 0.015 (sensitive to muffled mics)
                     is_speech_chunk = (prob > 0.25) or (rms > 0.015)
 
                     if is_speech_chunk:
@@ -399,7 +389,6 @@ class HandsFreeStreamingAudioThread(QThread):
                         elif speech_ever_started:
                             consecutive_silence += 1
 
-                    # Auto-stop on 800ms silence after speech, OR safety timeout at 7s
                     if (speech_ever_started and consecutive_silence >= self.max_silence_frames and len(self.audio_buffer) >= 6) or (total_frames >= max_total_frames and speech_ever_started):
                         self.is_recording = False
                         break
@@ -488,7 +477,7 @@ class LuxuryShoppingAssistantApp(QMainWindow):
         master_layout.setContentsMargins(24, 24, 24, 24)
         master_layout.setSpacing(20)
 
-        # ── Left Stage (320px Hero) ──
+        # ── Left Stage (Hero) ──
         left_panel = QFrame(self)
         left_panel.setObjectName("heroPanel")
         left_panel.setFixedWidth(320)
@@ -533,7 +522,7 @@ class LuxuryShoppingAssistantApp(QMainWindow):
         self.transcript_box.setWordWrap(True)
         left_layout.addWidget(self.transcript_box)
 
-        self.diag_label = QLabel("Streaming VAD • 900ms Endpoint", left_panel)
+        self.diag_label = QLabel("Streaming VAD • 800ms Endpoint", left_panel)
         self.diag_label.setStyleSheet("color: #4B5563; font-size: 11px; font-weight: 500;")
         self.diag_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         left_layout.addWidget(self.diag_label)
@@ -594,17 +583,11 @@ class LuxuryShoppingAssistantApp(QMainWindow):
         self.store_select.addItems(["Amazon Fresh", "Blinkit", "Zepto", "Instamart", "BigBasket"])
         right_toolbar.addWidget(self.store_select)
 
-        amazon_remote_btn = QPushButton("Amazon Cart", right_content)
-        amazon_remote_btn.setObjectName("amazonBtn")
-        amazon_remote_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        amazon_remote_btn.clicked.connect(self.export_amazon_remote_cart)
-        right_toolbar.addWidget(amazon_remote_btn)
-
-        auto_agent_btn = QPushButton("Auto-Cart Agent", right_content)
-        auto_agent_btn.setObjectName("toolBtn")
-        auto_agent_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        auto_agent_btn.clicked.connect(self.launch_auto_cart_agent)
-        right_toolbar.addWidget(auto_agent_btn)
+        checkout_all_btn = QPushButton("Open in Store ↗", right_content)
+        checkout_all_btn.setObjectName("storeActionBtn")
+        checkout_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        checkout_all_btn.clicked.connect(self.export_store_checkout)
+        right_toolbar.addWidget(checkout_all_btn)
 
         copy_btn = QPushButton("Copy Order", right_content)
         copy_btn.setObjectName("toolBtn")
@@ -679,7 +662,7 @@ class LuxuryShoppingAssistantApp(QMainWindow):
         self.status_label.setStyleSheet("color: #38BDF8; font-weight: 600;")
         self.transcript_box.setText("Listening... Speak your items")
 
-        self.recorder_thread = HandsFreeStreamingAudioThread(sample_rate=16000, silence_hangtime_ms=900)
+        self.recorder_thread = HandsFreeStreamingAudioThread(sample_rate=16000, silence_hangtime_ms=800)
         self.recorder_thread.energy_update.connect(self.siri_orb.update_energy)
         self.recorder_thread.speech_state_changed.connect(self.on_speech_state_changed)
         self.recorder_thread.auto_endpoint_triggered.connect(self.handle_recording_finished)
@@ -845,8 +828,8 @@ class LuxuryShoppingAssistantApp(QMainWindow):
                 store_btn.setFixedSize(22, 22)
                 store_btn.setStyleSheet("color: #38BDF8; background: rgba(56, 189, 248, 0.1); border-radius: 11px; font-size: 11px; font-weight: bold; border: none;")
                 store_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-                store_btn.setToolTip("Open in store")
-                store_btn.clicked.connect(lambda ch, n=itm['name']: self.open_single_item_in_store(n))
+                store_btn.setToolTip("Open direct product in store")
+                store_btn.clicked.connect(lambda ch, item_dict=itm: self.open_single_product(item_dict))
 
                 del_btn = QPushButton("×", card)
                 del_btn.setFixedSize(20, 20)
@@ -924,63 +907,21 @@ class LuxuryShoppingAssistantApp(QMainWindow):
         self.status_label.setText(f"Removed {name}")
         self.refresh_cart_and_suggestions()
 
-    def export_amazon_remote_cart(self):
-        items = list(cart.items.values())
-        if not items:
-            self.status_label.setText("Cart is empty")
-            return
-        
-        locale = "in" if "en-IN" in self.lang_select.currentText() or "hi-IN" in self.lang_select.currentText() else "com"
-        remote_url, matched = generate_amazon_remote_cart_url(items, locale=locale)
-        webbrowser.open(remote_url)
-        self.status_label.setText(f"Staged {len(matched)} items into Amazon Cart" if matched else "Opened Amazon Search ↗")
+    def open_single_product(self, item_dict: dict):
+        store = self.store_select.currentText()
+        url = get_product_direct_url(item_dict, store_name=store)
+        webbrowser.open_new_tab(url)
+        self.status_label.setText(f"Opened {item_dict.get('name')} in {store} ↗")
 
-    def launch_auto_cart_agent(self):
+    def export_store_checkout(self):
         items = list(cart.items.values())
         if not items:
-            self.status_label.setText("Cart is empty")
+            self.status_label.setText("Cart is empty - add items first")
             return
         
         store = self.store_select.currentText()
-        self.status_label.setText(f"Launching Auto-Cart for {store}...")
-        
-        class AutoCartWorker(QThread):
-            progress = pyqtSignal(str)
-            done = pyqtSignal(dict)
-            
-            def run(self):
-                try:
-                    res = run_playwright_quick_commerce_cart(store, items, progress_callback=self.progress.emit)
-                    self.done.emit(res)
-                except Exception as e:
-                    self.done.emit({"success": False, "error": str(e)})
-                
-        self.auto_cart_worker = AutoCartWorker()
-        self.auto_cart_worker.progress.connect(lambda msg: self.status_label.setText(msg))
-        self.auto_cart_worker.done.connect(lambda res: self.status_label.setText(
-            "Auto-Cart completed!" if res.get("success") else f"Agent: {res.get('error')}"
-        ))
-        self.auto_cart_worker.start()
-
-    def get_store_search_url(self, item_name: str) -> str:
-        store = self.store_select.currentText()
-        import urllib.parse
-        encoded = urllib.parse.quote_plus(item_name)
-        if "Amazon" in store:
-            return f"https://www.amazon.in/s?k={encoded}&i=nowstore"
-        elif "Blinkit" in store:
-            return f"https://blinkit.com/s/?q={encoded}"
-        elif "Zepto" in store:
-            return f"https://www.zeptonow.com/search?q={encoded}"
-        elif "Instamart" in store:
-            return f"https://www.swiggy.com/instamart/search?query={encoded}"
-        elif "BigBasket" in store:
-            return f"https://www.bigbasket.com/ps/?q={encoded}"
-        return f"https://www.google.com/search?q=buy+{encoded}"
-
-    def open_single_item_in_store(self, item_name: str):
-        webbrowser.open(self.get_store_search_url(item_name))
-        self.status_label.setText(f"Opened '{item_name}' in {self.store_select.currentText()}")
+        open_all_items_in_browser(items, store_name=store)
+        self.status_label.setText(f"Opened {len(items)} items in {store} tabs ↗")
 
     def copy_list_to_clipboard(self):
         items = list(cart.items.values())
