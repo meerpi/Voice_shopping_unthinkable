@@ -1,5 +1,4 @@
 import asyncio
-import numpy as np
 import sounddevice as sd
 from app import decode_webm_to_pcm
 
@@ -12,9 +11,6 @@ VOICE_MAP = {
 }
 
 def speak_text_sync(text: str, lang_code: str = "en-IN", sample_rate: int = 24000, visualizer_callback=None):
-    """
-    Synthesizes natural neural speech and plays it aloud using sounddevice.
-    """
     try:
         import edge_tts
         voice = VOICE_MAP.get(lang_code, "en-IN-NeerjaNeural")
@@ -32,13 +28,10 @@ def speak_text_sync(text: str, lang_code: str = "en-IN", sample_rate: int = 2400
             return
             
         pcm = decode_webm_to_pcm(raw_audio, target_sr=sample_rate)
-        
-        # Play PCM via sounddevice
         sd.play(pcm, samplerate=sample_rate)
         
-        # Optional real-time energy pump for Siri Orb
         if visualizer_callback:
-            chunk_len = int(sample_rate * 0.05) # 50ms chunks
+            chunk_len = int(sample_rate * 0.05)
             for i in range(0, len(pcm), chunk_len):
                 if not sd.get_stream().active:
                     break
@@ -48,8 +41,7 @@ def speak_text_sync(text: str, lang_code: str = "en-IN", sample_rate: int = 2400
         else:
             sd.wait()
             
-    except Exception as e:
-        print(f"⚠️ Primary TTS error: {e}, attempting gTTS fallback...")
+    except Exception:
         try:
             from gtts import gTTS
             import io
@@ -61,5 +53,5 @@ def speak_text_sync(text: str, lang_code: str = "en-IN", sample_rate: int = 2400
             pcm = decode_webm_to_pcm(fp.read(), target_sr=sample_rate)
             sd.play(pcm, samplerate=sample_rate)
             sd.wait()
-        except Exception as e2:
-            print(f"⚠️ Fallback TTS error: {e2}")
+        except Exception:
+            pass
