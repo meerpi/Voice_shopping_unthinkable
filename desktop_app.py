@@ -348,7 +348,7 @@ class HandsFreeStreamingAudioThread(QThread):
     auto_endpoint_triggered = pyqtSignal(bytes)
     error = pyqtSignal(str)
 
-    def __init__(self, sample_rate=16000, silence_hangtime_ms=900):
+    def __init__(self, sample_rate=16000, silence_hangtime_ms=800):
         super().__init__()
         self.sample_rate = sample_rate
         self.chunk_size = 512
@@ -363,6 +363,8 @@ class HandsFreeStreamingAudioThread(QThread):
         speech_ever_started = False
         speech_currently_active = False
         consecutive_silence = 0
+        total_frames = 0
+        max_total_frames = int(7.0 * self.sample_rate / self.chunk_size)  # 7s max timeout guard
 
         try:
             with sd.InputStream(samplerate=self.sample_rate, channels=1, dtype='float32', blocksize=self.chunk_size) as stream:
@@ -371,29 +373,36 @@ class HandsFreeStreamingAudioThread(QThread):
                     pcm = chunk[:, 0].copy()
                     self.audio_buffer.append(pcm)
                     self.energy_update.emit(pcm)
+                    total_frames += 1
 
+                    rms = float(np.sqrt(np.mean(pcm**2)))
+                    prob = 0.0
                     if self.vad_model is not None:
                         with torch.no_grad():
                             prob = self.vad_model(torch.from_numpy(pcm).float(), self.sample_rate).item()
 
-                        if prob > 0.45:
-                            if not speech_currently_active:
-                                speech_currently_active = True
-                                speech_ever_started = True
-                                self.speech_state_changed.emit(True)
-                            consecutive_silence = 0
-                        elif prob < 0.25:
-                            if speech_currently_active:
-                                consecutive_silence += 1
-                                if consecutive_silence >= 4:
-                                    speech_currently_active = False
-                                    self.speech_state_changed.emit(False)
-                            elif speech_ever_started:
-                                consecutive_silence += 1
+                    # Trigger on either VAD > 0.25 OR RMS > 0.015 (sensitive to muffled mics)
+                    is_speech_chunk = (prob > 0.25) or (rms > 0.015)
 
-                        if speech_ever_started and consecutive_silence >= self.max_silence_frames and len(self.audio_buffer) >= 6:
-                            self.is_recording = False
-                            break
+                    if is_speech_chunk:
+                        if not speech_currently_active:
+                            speech_currently_active = True
+                            speech_ever_started = True
+                            self.speech_state_changed.emit(True)
+                        consecutive_silence = 0
+                    else:
+                        if speech_currently_active:
+                            consecutive_silence += 1
+                            if consecutive_silence >= 3:
+                                speech_currently_active = False
+                                self.speech_state_changed.emit(False)
+                        elif speech_ever_started:
+                            consecutive_silence += 1
+
+                    # Auto-stop on 800ms silence after speech, OR safety timeout at 7s
+                    if (speech_ever_started and consecutive_silence >= self.max_silence_frames and len(self.audio_buffer) >= 6) or (total_frames >= max_total_frames and speech_ever_started):
+                        self.is_recording = False
+                        break
 
             if self.audio_buffer:
                 full_pcm = np.concatenate(self.audio_buffer, axis=0)
