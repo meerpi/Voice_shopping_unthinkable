@@ -5,926 +5,897 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Voice Shopping Assistant</title>
   <link rel="manifest" href="/static/manifest.json">
-  <meta name="theme-color" content="#2563eb">
+  <meta name="theme-color" content="#08090C">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0b0f19;
-      --card-bg: #131b2e;
-      --card-border: #1f2d4d;
-      --primary: #3b82f6;
-      --primary-glow: rgba(59, 130, 246, 0.4);
-      --accent: #10b981;
-      --danger: #ef4444;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
+      --bg: #08090C;
+      --panel-bg: #101216;
+      --card-bg: #13161C;
+      --card-hover: #1A1E26;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-subtle: rgba(255, 255, 255, 0.05);
+      --text: #EDEDED;
+      --text-muted: #6B7280;
+      --text-sub: #9CA3AF;
+      --primary: #FFFFFF;
+      --accent-blue: #38BDF8;
+      --accent-orange: #FF9900;
+      --danger: #EF4444;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    
     body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-family: -apple-system, 'SF Pro Display', 'Inter', 'Segoe UI', sans-serif;
       background-color: var(--bg);
       color: var(--text);
       min-height: 100vh;
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      justify-content: center;
       padding: 24px 16px;
+      -webkit-font-smoothing: antialiased;
     }
 
-    .container {
+    .app-shell {
       width: 100%;
-      max-width: 900px;
-      display: flex;
-      flex-direction: column;
+      max-width: 1180px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
       gap: 20px;
+      align-items: start;
     }
 
-    header {
-      text-align: center;
-      margin-bottom: 4px;
+    @media (max-width: 860px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
     }
 
-    h1 {
-      font-size: 2.1rem;
-      font-weight: 800;
-      background: linear-gradient(135deg, #60a5fa, #a855f7);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      margin-bottom: 4px;
-    }
-
-    p.subtitle {
-      color: var(--text-muted);
-      font-size: 0.95rem;
-    }
-
-    .mode-bar {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      margin-top: 4px;
-      flex-wrap: wrap;
-    }
-
-    .mode-btn {
-      padding: 8px 16px;
-      background: #1e293b;
-      border: 1px solid var(--card-border);
+    /* Left Hero Stage */
+    .hero-panel {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
       border-radius: 20px;
-      color: var(--text-muted);
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .mode-btn.active {
-      background: #2563eb;
-      color: white;
-      border-color: #3b82f6;
-      box-shadow: 0 0 15px rgba(37, 99, 235, 0.4);
-    }
-
-    .voice-panel {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 20px;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      gap: 16px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-      position: relative;
-    }
-
-    .tts-toggle {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      cursor: pointer;
-      background: #1e293b;
-      padding: 6px 12px;
-      border-radius: 20px;
-      border: 1px solid var(--card-border);
-    }
-
-    .dsp-badge {
-      position: absolute;
-      top: 16px;
-      left: 16px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.78rem;
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.1);
-      padding: 6px 12px;
-      border-radius: 20px;
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      font-weight: 600;
-    }
-
-    .mic-container {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .mic-button {
-      width: 92px;
-      height: 92px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #2563eb, #7c3aed);
-      border: none;
-      color: white;
-      font-size: 40px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 0 24px var(--primary-glow);
-      z-index: 2;
-    }
-
-    .mic-button:hover {
-      transform: scale(1.06);
-    }
-
-    .mic-button.recording {
-      background: linear-gradient(135deg, #ef4444, #f97316);
-      animation: pulse-ring 1.5s infinite;
-      box-shadow: 0 0 32px rgba(239, 68, 68, 0.6);
-    }
-
-    @keyframes pulse-ring {
-      0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-      70% { transform: scale(1.08); box-shadow: 0 0 0 22px rgba(239, 68, 68, 0); }
-      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-    }
-
-    #visualizerCanvas {
-      width: 240px;
-      height: 26px;
-      border-radius: 6px;
-      background: transparent;
-    }
-
-    .status-text {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #38bdf8;
-      min-height: 24px;
-    }
-
-    .transcript-box {
-      width: 100%;
-      background: #0f172a;
-      border: 1px dashed var(--card-border);
-      border-radius: 12px;
-      padding: 12px 16px;
-      font-size: 1rem;
-      color: #e2e8f0;
-      min-height: 48px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .audio-debug-bar {
-      display: none;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      background: #1e293b;
-      border: 1px solid #334155;
-      padding: 8px 16px;
-      border-radius: 12px;
-      width: 100%;
-      font-size: 0.85rem;
-    }
-
-    .controls-row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      width: 100%;
-      flex-wrap: wrap;
-    }
-
-    .controls-row input {
-      flex: 1;
-      min-width: 240px;
-      padding: 12px 16px;
-      background: #0f172a;
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      color: white;
-      font-size: 0.95rem;
-      outline: none;
-    }
-
-    .controls-row select, .controls-row button.btn {
-      padding: 12px 16px;
-      background: #1e293b;
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      color: white;
-      font-size: 0.95rem;
-      cursor: pointer;
-      font-weight: 600;
-    }
-
-    .controls-row button.btn:hover {
-      background: #334155;
-    }
-
-    .smart-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      align-items: center;
-      background: #162036;
-      border: 1px solid #23355b;
-      border-radius: 14px;
-      padding: 12px 16px;
-      font-size: 0.88rem;
-    }
-
-    .smart-tag {
-      background: rgba(59, 130, 246, 0.15);
-      border: 1px solid rgba(59, 130, 246, 0.3);
-      color: #93c5fd;
-      padding: 4px 10px;
-      border-radius: 20px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-
-    .smart-tag:hover {
-      background: rgba(59, 130, 246, 0.3);
-      color: white;
-    }
-
-    .cart-section {
+      padding: 22px;
       display: flex;
       flex-direction: column;
       gap: 16px;
+      position: sticky;
+      top: 24px;
     }
 
-    .cart-header {
+    .panel-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
 
-    .cart-header h2 {
-      font-size: 1.3rem;
+    .brand-title {
+      font-size: 22px;
       font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.5px;
     }
 
-    .aisle-grid {
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .lang-pill {
+      background: #16181F;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 5px 10px;
+      font-size: 11px;
+      color: var(--text-sub);
+      font-weight: 500;
+      outline: none;
+    }
+
+    /* Siri Living Orb */
+    .orb-stage {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 10px 0;
+    }
+
+    .siri-orb-canvas {
+      width: 130px;
+      height: 130px;
+      cursor: pointer;
+      border-radius: 50%;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .siri-orb-canvas:active {
+      transform: scale(0.95);
+    }
+
+    .status-badge {
+      font-size: 12px;
+      color: var(--text-sub);
+      font-weight: 500;
+      text-align: center;
+      min-height: 18px;
+    }
+
+    .transcript-hero {
+      font-size: 14px;
+      font-weight: 500;
+      color: #F3F4F6;
+      text-align: center;
+      line-height: 1.4;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .diag-caption {
+      font-size: 11px;
+      color: #4B5563;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    /* Inputs & Action Controls */
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .command-input {
+      background: #16181F;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-size: 13px;
+      color: #FFFFFF;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .command-input:focus {
+      border-color: rgba(255, 255, 255, 0.35);
+      background: #1B1E26;
+    }
+
+    .btn-row {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: #FFFFFF;
+      color: #08090C;
+      border: none;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-weight: 600;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-primary:hover {
+      background: #E5E7EB;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-weight: 500;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-ghost:hover {
+      color: var(--danger);
+      border-color: rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.06);
+    }
+
+    /* Right Bento Board */
+    .board-stage {
+      display: flex;
+      flex-direction: column;
       gap: 16px;
+    }
+
+    .toolbar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #FFFFFF;
+      letter-spacing: -0.2px;
+    }
+
+    .tool-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn-store {
+      background: var(--accent-orange);
+      color: #08090C;
+      border: none;
+      border-radius: 10px;
+      padding: 7px 14px;
+      font-weight: 700;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-store:hover {
+      background: #FFAA2B;
+    }
+
+    .btn-tool {
+      background: #16181F;
+      color: #D1D5DB;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 7px 12px;
+      font-weight: 500;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-tool:hover {
+      background: #20242E;
+      border-color: rgba(255, 255, 255, 0.18);
+      color: #FFFFFF;
+    }
+
+    /* Shelf Bento Card */
+    .bento-shelf {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .shelf-label {
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .pill-rack {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .pill-rack::-webkit-scrollbar { display: none; }
+
+    .suggestion-pill {
+      background: #16181F;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-sub);
+      border-radius: 10px;
+      padding: 5px 11px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .suggestion-pill:hover {
+      background: #1F232D;
+      color: #FFFFFF;
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Aisles Grid */
+    .aisles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
     }
 
     .aisle-card {
       background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
       padding: 16px;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
 
-    .aisle-title {
-      font-size: 0.92rem;
+    .aisle-header {
+      color: var(--text-muted);
       font-weight: 700;
-      color: #38bdf8;
-      border-bottom: 1px solid #1e293b;
-      padding-bottom: 6px;
+      font-size: 10px;
+      letter-spacing: 0.8px;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
     }
 
-    .cart-item {
+    .item-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: #0f172a;
-      padding: 8px 12px;
-      border-radius: 8px;
-      font-size: 0.9rem;
+      gap: 8px;
+      padding: 4px 0;
     }
 
-    .cart-item .name {
+    .item-name {
+      color: #FFFFFF;
+      font-size: 13px;
       font-weight: 600;
-      color: #f1f5f9;
     }
 
-    .cart-item .qty {
-      color: var(--text-muted);
-      font-size: 0.8rem;
-    }
-
-    .remove-btn {
-      background: transparent;
-      border: none;
-      color: #ef4444;
-      cursor: pointer;
-      font-size: 1.1rem;
+    .item-qty {
+      color: var(--text-sub);
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.06);
       padding: 2px 6px;
-      border-radius: 4px;
+      border-radius: 6px;
     }
 
-    .remove-btn:hover {
-      background: rgba(239, 68, 68, 0.2);
+    .item-actions {
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
-    .search-results {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 16px;
-      display: none;
-      flex-direction: column;
-      gap: 12px;
+    .btn-link-store {
+      width: 22px;
+      height: 22px;
+      color: var(--accent-blue);
+      background: rgba(56, 189, 248, 0.1);
+      border-radius: 11px;
+      font-size: 11px;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
     }
 
-    .product-grid {
+    .btn-del {
+      width: 20px;
+      height: 20px;
+      color: var(--text-muted);
+      background: transparent;
+      font-size: 15px;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-del:hover { color: var(--danger); }
+
+    /* Search Results Grid */
+    .search-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 12px;
+      gap: 10px;
     }
 
     .product-card {
-      background: #0f172a;
-      border: 1px solid #1e293b;
-      border-radius: 10px;
+      background: var(--card-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
       padding: 12px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
     }
 
-    .product-card .p-name { font-weight: 700; font-size: 0.9rem; }
-    .product-card .p-brand { font-size: 0.75rem; color: var(--text-muted); }
-    .product-card .p-price { color: var(--accent); font-weight: 700; font-size: 0.95rem; }
-    .product-card button {
-      margin-top: 4px;
-      padding: 6px;
-      background: #2563eb;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      cursor: pointer;
+    .product-name { color: #FFFFFF; font-size: 12px; font-weight: 600; }
+    .product-brand { color: var(--text-muted); font-size: 10px; }
+    .product-price { color: #FFFFFF; font-weight: 700; font-size: 13px; margin-top: 2px; }
+    
+    .btn-add-search {
+      background: #1C1F28;
+      color: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px;
       font-weight: 600;
+      font-size: 11px;
+      cursor: pointer;
+      margin-top: 4px;
+      text-align: center;
+    }
+    .btn-add-search:hover { background: #282D3B; }
+
+    .empty-state {
+      color: #4B5563;
+      font-size: 13px;
+      padding: 24px 0;
     }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <header>
-      <h1>Voice Shopping Assistant</h1>
-      <p class="subtitle">Server-Side Enhancement: Bandpass → Noise Reduction → VAD Trim → AGC Normalize</p>
-      <div class="mode-bar">
-        <button id="modeDirectAudio" class="mode-btn active">⚡ Mode 1: Enhanced Gemini Direct Audio</button>
-        <button id="modeWebSpeech" class="mode-btn">🎙️ Mode 2: Web Speech API</button>
-      </div>
-    </header>
-
-    <div class="voice-panel">
-      <div class="dsp-badge">🎛️ 6-Stage Enhancement Pipeline: ACTIVE</div>
-      <div class="tts-toggle" id="ttsToggleBtn" title="Toggle Voice Audio Feedback">
-        <span id="ttsIcon">🔊</span> Voice Feedback: <strong id="ttsStatus">ON</strong>
-      </div>
-
-      <div class="mic-container">
-        <button id="micBtn" class="mic-button" title="Click to speak">
-          🎙️
-        </button>
-        <canvas id="visualizerCanvas"></canvas>
-      </div>
-
-      <div id="statusText" class="status-text">Click to speak (e.g. "a litre of milk", "10 bananas")</div>
-      <div id="transcriptBox" class="transcript-box">Your spoken command will appear here...</div>
-
-      <div id="audioDebugBar" class="audio-debug-bar" style="flex-direction: column; gap: 8px;">
-        <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
-          <span>🔴 Raw:</span>
-          <audio id="audioPlayer" controls style="height: 30px; flex: 1;"></audio>
+  <div class="app-shell">
+    <!-- Left Hero Stage -->
+    <aside class="hero-panel">
+      <div class="panel-header">
+        <div>
+          <div class="brand-title">Assistant</div>
+          <div class="brand-subtitle">Hands-Free Voice Grounding</div>
         </div>
-        <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
-          <span>✨ Enhanced:</span>
-          <audio id="enhancedPlayer" controls style="height: 30px; flex: 1;"></audio>
-        </div>
-        <div id="enhancementDiag" style="font-size: 0.75rem; color: #38bdf8; font-family: monospace; word-break: break-all;"></div>
-      </div>
-
-      <div class="controls-row">
-        <select id="langSelect">
-          <option value="en-IN">English (India - en-IN)</option>
-          <option value="en-US">English (US - en-US)</option>
-          <option value="en-GB">English (UK - en-GB)</option>
-          <option value="hi-IN">Hindi (हिन्दी - hi-IN)</option>
-          <option value="es-ES">Spanish (Español - es-ES)</option>
-          <option value="fr-FR">French (Français - fr-FR)</option>
+        <select id="langSelect" class="lang-pill">
+          <option value="en-IN">en-IN</option>
+          <option value="en-US">en-US</option>
+          <option value="en-GB">en-GB</option>
+          <option value="hi-IN">hi-IN</option>
+          <option value="es-ES">es-ES</option>
         </select>
-        <input type="text" id="textInput" placeholder="Or type a command (e.g. 'a litre of milk', '10 bananas')...">
-        <button id="sendBtn" class="btn">Send</button>
-        <button id="clearBtn" class="btn" style="color: #ef4444;">Clear</button>
       </div>
-    </div>
 
-    <div id="smartBar" class="smart-bar">
-      <span style="font-weight: 700; color: #38bdf8;">Suggestions:</span>
-      <div id="suggestionsList" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
-    </div>
-
-    <div id="searchSection" class="search-results">
-      <h3 style="color: #38bdf8;">Live Product Search Results</h3>
-      <div id="productGrid" class="product-grid"></div>
-    </div>
-
-    <div class="cart-section">
-      <div class="cart-header">
-        <h2>Your Shopping List</h2>
+      <div class="orb-stage">
+        <canvas id="siriOrbCanvas" class="siri-orb-canvas" width="130" height="130"></canvas>
       </div>
-      <div id="aisleGrid" class="aisle-grid"></div>
-    </div>
+
+      <div id="statusText" class="status-badge">Tap orb & speak naturally</div>
+      <div id="transcriptHero" class="transcript-hero">“Auto-detects when you finish speaking”</div>
+      <div class="diag-caption">Streaming VAD • 800ms Endpoint</div>
+
+      <div class="input-group">
+        <input type="text" id="commandInput" class="command-input" placeholder="Type a grocery request...">
+        <div class="btn-row">
+          <button id="sendBtn" class="btn-primary">Send</button>
+          <button id="clearBtn" class="btn-ghost">Clear</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right Bento Board -->
+    <main class="board-stage">
+      <div class="toolbar-header">
+        <h2 class="section-title">Shopping List</h2>
+        <div class="tool-actions">
+          <select id="storeSelect" class="lang-pill">
+            <option value="Amazon Fresh">Amazon Fresh</option>
+            <option value="Blinkit">Blinkit</option>
+            <option value="Zepto">Zepto</option>
+            <option value="Instamart">Instamart</option>
+            <option value="BigBasket">BigBasket</option>
+          </select>
+          <button id="storeCheckoutBtn" class="btn-store">Open in Store ↗</button>
+          <button id="copyOrderBtn" class="btn-tool">Copy Order</button>
+        </div>
+      </div>
+
+      <!-- Recommendations Shelf -->
+      <div class="bento-shelf">
+        <div class="shelf-label">RECOMMENDED</div>
+        <div id="pillRack" class="pill-rack"></div>
+      </div>
+
+      <!-- Search Section -->
+      <div id="searchSection" class="bento-shelf" style="display: none;">
+        <div class="shelf-label">SEARCH RESULTS</div>
+        <div id="searchGrid" class="search-grid"></div>
+      </div>
+
+      <!-- Categorized Aisles -->
+      <div id="aislesContainer" class="aisles-grid">
+        <div class="empty-state">Your shopping list is empty. Speak or type to add items.</div>
+      </div>
+    </main>
   </div>
 
   <script>
-    const micBtn = document.getElementById('micBtn');
-    const statusText = document.getElementById('statusText');
-    const transcriptBox = document.getElementById('transcriptBox');
-    const langSelect = document.getElementById('langSelect');
-    const textInput = document.getElementById('textInput');
-    const sendBtn = document.getElementById('sendBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const aisleGrid = document.getElementById('aisleGrid');
-    const suggestionsList = document.getElementById('suggestionsList');
-    const searchSection = document.getElementById('searchSection');
-    const productGrid = document.getElementById('productGrid');
-    const ttsToggleBtn = document.getElementById('ttsToggleBtn');
-    const ttsIcon = document.getElementById('ttsIcon');
-    const ttsStatus = document.getElementById('ttsStatus');
-    const modeDirectAudio = document.getElementById('modeDirectAudio');
-    const modeWebSpeech = document.getElementById('modeWebSpeech');
-    const canvas = document.getElementById('visualizerCanvas');
-    const canvasCtx = canvas.getContext('2d');
-    const audioDebugBar = document.getElementById('audioDebugBar');
-    const audioPlayer = document.getElementById('audioPlayer');
-    const enhancedPlayer = document.getElementById('enhancedPlayer');
-    const enhancementDiag = document.getElementById('enhancementDiag');
+    // ─── SIRI LIVING ORB ANIMATION (60 FPS) ───
+    const canvas = document.getElementById('siriOrbCanvas');
+    const ctx = canvas.getContext('2d');
+    let isRecording = false;
+    let isSpeaking = false;
+    let phase = 0.0;
+    let energy = 0.05;
+    let targetEnergy = 0.05;
 
-    let currentMode = 'DIRECT_AUDIO';
+    function renderOrb() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+      const baseR = 42.0 + (energy * 12.0);
+
+      // Ambient Glow
+      if (isRecording || isSpeaking) {
+        const aura = ctx.createRadialGradient(cx, cy, baseR * 0.5, cx, cy, baseR * 1.5);
+        if (isSpeaking) {
+          aura.addColorStop(0, 'rgba(255, 100, 60, 0.4)');
+          aura.addColorStop(0.5, 'rgba(140, 70, 255, 0.2)');
+        } else {
+          aura.addColorStop(0, 'rgba(56, 189, 248, 0.35)');
+          aura.addColorStop(0.5, 'rgba(99, 102, 241, 0.15)');
+        }
+        aura.addColorStop(1, 'rgba(8, 9, 12, 0)');
+        ctx.fillStyle = aura;
+        ctx.beginPath();
+        ctx.arc(cx, cy, baseR * 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Organic Wave Path
+      ctx.beginPath();
+      const points = 64;
+      for (let i = 0; i <= points; i++) {
+        const angle = (i / points) * 2 * Math.PI;
+        const wave1 = Math.sin(angle * 3 + phase) * (energy * 8.0);
+        const wave2 = Math.cos(angle * 5 - phase * 1.5) * (energy * 4.0);
+        const r = baseR + wave1 + wave2;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+
+      const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      if (isRecording || isSpeaking) {
+        grad.addColorStop(0, '#FF5252');
+        grad.addColorStop(0.35, '#FF7A00');
+        grad.addColorStop(0.7, '#7928CA');
+        grad.addColorStop(1, '#0070F3');
+      } else {
+        grad.addColorStop(0, '#181A22');
+        grad.addColorStop(0.5, '#1E212B');
+        grad.addColorStop(1, '#14161E');
+      }
+
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.strokeStyle = isRecording || isSpeaking ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Center Glyph
+      ctx.fillStyle = isRecording || isSpeaking ? '#FFFFFF' : '#6B7280';
+      ctx.font = '600 16px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(isSpeaking ? '●' : (isRecording ? '...' : '🎙'), cx, cy);
+
+      const speed = isSpeaking ? 0.05 : (isRecording ? 0.025 : 0.01);
+      phase += speed;
+      energy += (targetEnergy - energy) * 0.16;
+
+      requestAnimationFrame(renderOrb);
+    }
+    requestAnimationFrame(renderOrb);
+
+    // ─── AUDIO CAPTURE & AUDIO STREAMING ───
     let mediaRecorder = null;
     let audioChunks = [];
-    let isRecording = false;
-    let ttsEnabled = true;
-    let webSpeechRecognition = null;
     let audioContext = null;
     let analyser = null;
-    let animId = null;
+    let silenceTimer = null;
 
-    modeDirectAudio.onclick = () => {
-      currentMode = 'DIRECT_AUDIO';
-      modeDirectAudio.classList.add('active');
-      modeWebSpeech.classList.remove('active');
-      statusText.textContent = '⚡ Gemini Direct Audio Mode active. Click mic and speak!';
-    };
+    canvas.addEventListener('click', toggleRecording);
 
-    modeWebSpeech.onclick = () => {
-      currentMode = 'WEB_SPEECH';
-      modeWebSpeech.classList.add('active');
-      modeDirectAudio.classList.remove('active');
-      statusText.textContent = '🎙️ Web Speech API Mode active. Click mic and speak!';
-    };
-
-    function speakFeedback(text, lang = 'en-US') {
-      if (!ttsEnabled || !window.speechSynthesis || !text) return;
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
-      utterance.lang = lang;
-      window.speechSynthesis.speak(utterance);
-    }
-
-    ttsToggleBtn.onclick = () => {
-      ttsEnabled = !ttsEnabled;
-      ttsStatus.textContent = ttsEnabled ? 'ON' : 'OFF';
-      ttsIcon.textContent = ttsEnabled ? '🔊' : '🔇';
-      if (!ttsEnabled && window.speechSynthesis) window.speechSynthesis.cancel();
-    };
-
-    function drawVisualizer() {
-      if (!analyser) return;
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      analyser.getByteFrequencyData(dataArray);
-
-      canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-      const barWidth = (canvas.width / 16) - 2;
-      let x = 0;
-
-      for (let i = 0; i < 16; i++) {
-        const val = dataArray[i * 2] / 255.0;
-        const barHeight = Math.max(3, val * canvas.height);
-        canvasCtx.fillStyle = '#38bdf8';
-        canvasCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-        x += barWidth + 2;
-      }
-
-      if (isRecording) {
-        animId = requestAnimationFrame(drawVisualizer);
+    async function toggleRecording() {
+      if (!isRecording) {
+        startAudioRecording();
       } else {
-        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        stopAudioRecording();
       }
     }
 
-    // STATE-OF-THE-ART DSP CHAIN: HighPass -> Presence EQ -> LowPass -> Limiter
-    async function startDirectAudioRecording() {
+    async function startAudioRecording() {
       try {
-        const rawStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            channelCount: 1,
-            sampleRate: 16000
-          }
-        });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        isRecording = true;
+        targetEnergy = 0.25;
+        document.getElementById('statusText').textContent = 'Listening... (speak now)';
+        document.getElementById('statusText').style.color = '#38BDF8';
+        document.getElementById('transcriptHero').textContent = 'Listening... Speak your items';
 
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioContext.createMediaStreamSource(rawStream);
-
-        // 1. High-Pass Filter @ 90Hz (cuts desk vibrations, fan hum)
-        const highPass = audioContext.createBiquadFilter();
-        highPass.type = 'highpass';
-        highPass.frequency.value = 90;
-        highPass.Q.value = 0.707;
-
-        // 2. Vocal Formant Presence EQ @ 3,200Hz (+6dB Peaking EQ for crystal consonant articulation)
-        const presenceEQ = audioContext.createBiquadFilter();
-        presenceEQ.type = 'peaking';
-        presenceEQ.frequency.value = 3200;
-        presenceEQ.gain.value = 6.0;
-        presenceEQ.Q.value = 1.0;
-
-        // 3. Low-Pass Filter @ 7,500Hz (cuts electrical noise & hiss)
-        const lowPass = audioContext.createBiquadFilter();
-        lowPass.type = 'lowpass';
-        lowPass.frequency.value = 7500;
-        lowPass.Q.value = 0.707;
-
-        // 4. Brickwall Peak Limiter (prevents clipping & harsh saturation)
-        const limiter = audioContext.createDynamicsCompressor();
-        limiter.threshold.value = -12.0;
-        limiter.knee.value = 6.0;
-        limiter.ratio.value = 16.0;
-        limiter.attack.value = 0.001;
-        limiter.release.value = 0.10;
-
-        // 5. Analyser
         analyser = audioContext.createAnalyser();
-        analyser.fftSize = 64;
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
 
-        // 6. Destination
-        const destination = audioContext.createMediaStreamDestination();
-
-        // Connect Chain: Source -> HighPass -> PresenceEQ -> LowPass -> Limiter -> Destination
-        source.connect(highPass);
-        highPass.connect(presenceEQ);
-        presenceEQ.connect(lowPass);
-        lowPass.connect(limiter);
-        limiter.connect(analyser);
-        limiter.connect(destination);
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+        const checkVolume = () => {
+          if (!isRecording) return;
+          analyser.getByteFrequencyData(dataArray);
+          const sum = dataArray.reduce((a, b) => a + b, 0);
+          const avg = sum / dataArray.length;
+          targetEnergy = Math.min(1.0, Math.max(0.08, avg / 45.0));
+          requestAnimationFrame(checkVolume);
+        };
+        checkVolume();
 
         audioChunks = [];
-        mediaRecorder = new MediaRecorder(destination.stream, { mimeType: 'audio/webm' });
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onstop = uploadRecordedAudio;
+        mediaRecorder.start(250);
 
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data.size > 0) audioChunks.push(event.data);
-        };
-
-        mediaRecorder.onstop = async () => {
-          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-          statusText.textContent = '🧠 Gemini Flash is processing enhanced audio...';
-          micBtn.classList.remove('recording');
-          isRecording = false;
-
-          const blobUrl = URL.createObjectURL(audioBlob);
-          audioPlayer.src = blobUrl;
-          audioDebugBar.style.display = 'flex';
-
-          rawStream.getTracks().forEach(track => track.stop());
-          if (audioContext) audioContext.close();
-
-          const formData = new FormData();
-          formData.append('file', audioBlob, 'speech.webm');
-
-          try {
-            const resp = await fetch('/api/voice-audio', {
-              method: 'POST',
-              body: formData
-            });
-            const data = await resp.json();
-            handleBackendResponse(data);
-          } catch (err) {
-            statusText.textContent = `Audio Error: ${err.message}`;
-          }
-        };
-
-        mediaRecorder.start();
-        isRecording = true;
-        micBtn.classList.add('recording');
-        statusText.textContent = '🔴 Listening (Vocal Presence EQ active)... Speak now!';
-        transcriptBox.textContent = 'Recording clean audio... Click again when done.';
-        drawVisualizer();
       } catch (err) {
-        statusText.textContent = `Microphone notice: ${err.message}`;
-      }
-    }
-
-    function stopDirectAudioRecording() {
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-      }
-    }
-
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      webSpeechRecognition = new SpeechRecognition();
-      webSpeechRecognition.continuous = false;
-      webSpeechRecognition.interimResults = true;
-      webSpeechRecognition.maxAlternatives = 3;
-      webSpeechRecognition.lang = langSelect.value;
-
-      webSpeechRecognition.onstart = () => {
-        isRecording = true;
-        micBtn.classList.add('recording');
-        statusText.textContent = 'Listening... Speak your command!';
-        transcriptBox.textContent = '...';
-      };
-
-      webSpeechRecognition.onresult = (event) => {
-        let interim = '';
-        let final = '';
-        const alternatives = [];
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const res = event.results[i];
-          if (res.isFinal) {
-            final += res[0].transcript;
-            for (let j = 0; j < res.length; j++) alternatives.push(res[j].transcript);
-          } else {
-            interim += res[0].transcript;
-          }
-        }
-        transcriptBox.textContent = final || interim;
-        if (final) sendTextCommand(final, alternatives);
-      };
-
-      webSpeechRecognition.onend = () => {
-        micBtn.classList.remove('recording');
+        document.getElementById('statusText').textContent = 'Microphone error: ' + err.message;
         isRecording = false;
-      };
+      }
     }
 
-    micBtn.onclick = () => {
-      if (currentMode === 'DIRECT_AUDIO') {
-        if (!isRecording) {
-          startDirectAudioRecording();
-        } else {
-          stopDirectAudioRecording();
-        }
-      } else {
-        if (!isRecording) {
-          webSpeechRecognition.lang = langSelect.value;
-          webSpeechRecognition.start();
-        } else {
-          webSpeechRecognition.stop();
-        }
+    function stopAudioRecording() {
+      if (mediaRecorder && isRecording) {
+        isRecording = false;
+        targetEnergy = 0.05;
+        document.getElementById('statusText').textContent = 'Parsing with Gemini...';
+        mediaRecorder.stop();
+        if (audioContext) audioContext.close();
       }
-    };
+    }
 
-    langSelect.onchange = () => {
-      if (webSpeechRecognition) webSpeechRecognition.lang = langSelect.value;
-    };
+    async function uploadRecordedAudio() {
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      const formData = new FormData();
+      formData.append('file', blob, 'audio.webm');
 
-    async function sendTextCommand(text, alternatives = []) {
-      if (!text.trim()) return;
-      statusText.textContent = 'Processing command...';
       try {
-        const res = await fetch('/api/voice-command', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transcript: text, alternatives: alternatives })
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+        const resp = await fetch('/api/voice-audio', { method: 'POST', body: formData });
+        const data = await resp.json();
         handleBackendResponse(data);
       } catch (err) {
-        // Fallback for static hosts (GitHub Pages)
-        processClientSideCommand(text);
+        document.getElementById('statusText').textContent = 'Server error: ' + err.message;
       }
     }
 
-    function processClientSideCommand(text) {
-      const clean = text.toLowerCase().replace(/^(add|i want|please buy|buy|put)\s+/i, '').trim();
-      const qtyMatch = clean.match(/^(\d+)\s*(kg|g|litre|liter|pack|packs|bottles|pieces|items)?\s*(.+)$/i);
-      let qty = 1, unit = 'item', name = clean;
-      if (qtyMatch) {
-        qty = parseFloat(qtyMatch[1]);
-        unit = qtyMatch[2] || 'item';
-        name = qtyMatch[3];
+    // ─── TEXT COMMAND DISPATCH ───
+    const commandInput = document.getElementById('commandInput');
+    document.getElementById('sendBtn').addEventListener('click', handleTextSubmit);
+    commandInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleTextSubmit(); });
+
+    async function handleTextSubmit() {
+      const text = commandInput.value.trim();
+      if (!text) return;
+      commandInput.value = '';
+      document.getElementById('statusText').textContent = 'Processing...';
+      document.getElementById('transcriptHero').textContent = `“${text}”`;
+
+      try {
+        const resp = await fetch('/api/voice-command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transcript: text })
+        });
+        const data = await resp.json();
+        handleBackendResponse(data);
+      } catch (err) {
+        document.getElementById('statusText').textContent = 'Error: ' + err.message;
       }
-      name = name.charAt(0).toUpperCase() + name.slice(1);
-      
-      let cat = 'Pantry';
-      if (/milk|butter|cheese|ghee|egg|paneer|curd|yogurt/i.test(name)) cat = 'Dairy & Eggs';
-      else if (/apple|banana|mango|potato|onion|tomato|jackfruit|pea|spinach|guava/i.test(name)) cat = 'Produce';
-      else if (/chicken|meat|fish|prawn|salmon/i.test(name)) cat = 'Meat & Seafood';
-      else if (/bread|croissant|bagel|bun/i.test(name)) cat = 'Bakery';
-      else if (/chips|cookie|biscuit|chocolate|nut/i.test(name)) cat = 'Snacks';
-      else if (/soap|shampoo|toothpaste|brush|lotion/i.test(name)) cat = 'Personal Care';
-
-      // Update local cart
-      if (!window.localCart) window.localCart = {};
-      if (!window.localCart[cat]) window.localCart[cat] = [];
-      window.localCart[cat].push({
-        name: name,
-        base_name: name.toLowerCase(),
-        quantity: qty,
-        unit: unit,
-        category: cat,
-        completed: false
-      });
-
-      const feedback = `Added ${qty} ${unit} of ${name} to ${cat}.`;
-      handleBackendResponse({
-        transcript: text,
-        messages: [feedback],
-        tts_message: feedback,
-        cart: window.localCart,
-        seasonal_picks: ['Watermelon', 'Mangoes', 'Peaches', 'Sweet Corn'],
-        substitutes: ['Oat Milk', 'Almond Milk', 'Soy Milk'],
-        history_recs: ['Bread', 'Butter', 'Eggs']
-      });
     }
 
+    document.getElementById('clearBtn').addEventListener('click', async () => {
+      await fetch('/api/cart', { method: 'DELETE' });
+      document.getElementById('statusText').textContent = 'Cart cleared';
+      document.getElementById('transcriptHero').textContent = '“Shopping list is empty”';
+      document.getElementById('searchSection').style.display = 'none';
+      renderCart({});
+    });
+
+    // ─── BACKEND RESPONSE HANDLER ───
     function handleBackendResponse(data) {
       if (!data) return;
       if (data.error) {
-        statusText.textContent = 'Notice: ' + data.error;
+        document.getElementById('statusText').textContent = 'Notice: ' + data.error;
         return;
       }
-      transcriptBox.textContent = `Heard: "${data.transcript || 'Command'}"`;
-      const msgs = Array.isArray(data.messages) ? data.messages.join(' | ') : (data.messages || data.tts_message || data.feedback_message || 'Done!');
-      statusText.textContent = msgs;
+
+      document.getElementById('transcriptHero').textContent = `“${data.transcript || 'Command'}”`;
+      const msgs = Array.isArray(data.messages) ? data.messages.join(' | ') : (data.messages || data.tts_message || 'Cart updated');
+      document.getElementById('statusText').textContent = msgs;
+      document.getElementById('statusText').style.color = '#9CA3AF';
+
       renderCart(data.cart || {});
-      renderSuggestions(data.seasonal_picks || [], data.substitutes || [], data.history_recs || []);
-      
-      if (data.tts_message) {
-        speakFeedback(data.tts_message, langSelect.value);
-      }
-
-      // Show enhanced audio comparison
-      if (data.audio_url) {
-        enhancedPlayer.src = '/api/debug-enhanced?' + Date.now();
-        audioDebugBar.style.display = 'flex';
-      }
-
-      // Show enhancement diagnostics
-      if (data.enhancement) {
-        const d = data.enhancement;
-        const parts = [];
-        if (d.raw_duration_s) parts.push(`Raw: ${d.raw_duration_s}s (${d.raw_rms_dbfs}dB RMS)`);
-        if (d.vad_duration_s) parts.push(`After VAD: ${d.vad_duration_s}s`);
-        if (d.enhanced_rms_dbfs) parts.push(`Enhanced: ${d.enhanced_rms_dbfs}dB RMS`);
-        if (d.noise_reduction) parts.push(`NR: ${d.noise_reduction}`);
-        enhancementDiag.textContent = parts.join(' → ');
-      }
+      renderRecommendations(data.seasonal_picks || [], data.history_recs || []);
 
       if (data.search_results && data.search_results.length > 0) {
         renderSearchResults(data.search_results);
       } else {
-        searchSection.style.display = 'none';
+        document.getElementById('searchSection').style.display = 'none';
+      }
+
+      if (data.tts_message) {
+        speakBrowserTTS(data.tts_message);
       }
     }
 
-    sendBtn.onclick = () => {
-      const text = textInput.value;
-      if (text) {
-        transcriptBox.textContent = text;
-        sendTextCommand(text);
-        textInput.value = '';
-      }
-    };
+    function speakBrowserTTS(text) {
+      if (!('speechSynthesis' in window)) return;
+      isSpeaking = true;
+      targetEnergy = 0.6;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = document.getElementById('langSelect').value;
+      utter.onend = () => { isSpeaking = false; targetEnergy = 0.05; };
+      utter.onerror = () => { isSpeaking = false; targetEnergy = 0.05; };
+      window.speechSynthesis.speak(utter);
+    }
 
-    textInput.onkeydown = (e) => {
-      if (e.key === 'Enter') sendBtn.click();
-    };
+    // ─── RENDERING CARTS & SHELVES ───
+    let currentCartItems = [];
 
-    clearBtn.onclick = async () => {
-      await fetch('/api/cart', { method: 'DELETE' });
-      renderCart({});
-      statusText.textContent = 'Cart cleared.';
-      transcriptBox.textContent = '';
-      searchSection.style.display = 'none';
-      speakFeedback('Shopping cart cleared.');
-    };
+    function renderCart(categorized) {
+      const container = document.getElementById('aislesContainer');
+      container.innerHTML = '';
+      currentCartItems = [];
 
-    function renderCart(cartData) {
-      aisleGrid.innerHTML = '';
-      const categories = Object.keys(cartData);
-      if (categories.length === 0) {
-        aisleGrid.innerHTML = '<div style="color: var(--text-muted); font-size: 0.95rem;">Your shopping list is empty. Speak or type to add items!</div>';
+      const keys = Object.keys(categorized);
+      if (keys.length === 0) {
+        container.innerHTML = '<div class="empty-state">Your shopping list is empty. Speak or type to add items.</div>';
         return;
       }
 
-      categories.forEach(cat => {
+      keys.forEach(cat => {
+        const items = categorized[cat];
         const card = document.createElement('div');
         card.className = 'aisle-card';
-        card.innerHTML = `<div class="aisle-title">${cat}</div>`;
 
-        cartData[cat].forEach(item => {
-          const itmRow = document.createElement('div');
-          itmRow.className = 'cart-item';
-          itmRow.innerHTML = `
-            <div>
-              <div class="name">${item.name}</div>
-              <div class="qty">${item.quantity} ${item.unit}</div>
-            </div>
-            <button class="remove-btn" onclick="removeItem('${item.name}')">✕</button>
-          `;
-          card.appendChild(itmRow);
+        const header = document.createElement('div');
+        header.className = 'aisle-header';
+        header.textContent = cat;
+        card.appendChild(header);
+
+        items.forEach(itm => {
+          currentCartItems.push(itm);
+          const row = document.createElement('div');
+          row.className = 'item-row';
+
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'item-name';
+          nameSpan.textContent = itm.name;
+
+          const qtySpan = document.createElement('span');
+          qtySpan.className = 'item-qty';
+          qtySpan.textContent = `${itm.quantity} ${itm.unit}`;
+
+          const actions = document.createElement('div');
+          actions.className = 'item-actions';
+
+          const storeLink = document.createElement('button');
+          storeLink.className = 'btn-link-store';
+          storeLink.innerHTML = '↗';
+          storeLink.title = 'Open product page';
+          storeLink.onclick = () => openSingleItemStore(itm.name);
+
+          const delBtn = document.createElement('button');
+          delBtn.className = 'btn-del';
+          delBtn.innerHTML = '×';
+          delBtn.title = 'Remove';
+          delBtn.onclick = () => removeItem(itm.base_name);
+
+          actions.appendChild(storeLink);
+          actions.appendChild(delBtn);
+
+          row.appendChild(nameSpan);
+          row.appendChild(qtySpan);
+          row.appendChild(actions);
+          card.appendChild(row);
         });
 
-        aisleGrid.appendChild(card);
+        container.appendChild(card);
       });
     }
 
-    window.removeItem = async (name) => {
-      sendTextCommand(`Remove ${name} from my list`);
-    };
+    function renderRecommendations(seasonal, history) {
+      const rack = document.getElementById('pillRack');
+      rack.innerHTML = '';
 
-    function renderSuggestions(seasonal = [], substitutes = [], history = []) {
-      suggestionsList.innerHTML = '';
-      const all = [];
-      seasonal.forEach(s => all.push({ text: `🍂 ${s} (In-Season)`, query: `Add ${s}` }));
-      substitutes.forEach(sub => all.push({ text: `💡 Substitute: ${sub}`, query: `Add ${sub}` }));
-      history.forEach(h => all.push({ text: `🔄 Replenish ${h}`, query: `Add ${h}` }));
+      seasonal.forEach(item => {
+        const btn = document.createElement('button');
+        btn.className = 'suggestion-pill';
+        btn.textContent = item;
+        btn.onclick = () => quickAddItem(item);
+        rack.appendChild(btn);
+      });
 
-      all.slice(0, 6).forEach(item => {
-        const tag = document.createElement('div');
-        tag.className = 'smart-tag';
-        tag.textContent = item.text;
-        tag.onclick = () => sendTextCommand(item.query);
-        suggestionsList.appendChild(tag);
+      history.forEach(item => {
+        const btn = document.createElement('button');
+        btn.className = 'suggestion-pill';
+        btn.textContent = '+ ' + item;
+        btn.onclick = () => quickAddItem(item);
+        rack.appendChild(btn);
       });
     }
 
     function renderSearchResults(products) {
-      searchSection.style.display = 'flex';
-      productGrid.innerHTML = '';
+      const section = document.getElementById('searchSection');
+      const grid = document.getElementById('searchGrid');
+      grid.innerHTML = '';
+      section.style.display = 'flex';
+
       products.forEach(p => {
         const card = document.createElement('div');
         card.className = 'product-card';
         card.innerHTML = `
-          <div class="p-name">${p.name}</div>
-          <div class="p-brand">${p.brand} [Score: ${p.nutriscore}]</div>
-          <div class="p-price">${p.price}</div>
-          <button onclick="sendTextCommand('Add 1 item of ${p.name}')">+ Add to List</button>
+          <div class="product-name">${p.name}</div>
+          <div class="product-brand">${p.brand} • Score ${p.nutriscore}</div>
+          <div class="product-price">${p.price}</div>
+          <button class="btn-add-search" onclick="quickAddItem('${p.name.replace(/'/g, "\\'")}')">+ Add</button>
         `;
-        productGrid.appendChild(card);
+        grid.appendChild(card);
       });
     }
 
-    fetch('/api/cart')
-      .then(r => r.json())
-      .then(d => {
-        renderCart(d.cart);
-        renderSuggestions(d.seasonal_picks, [], d.history_recs);
+    function quickAddItem(name) {
+      commandInput.value = `Add 1 ${name}`;
+      handleTextSubmit();
+    }
+
+    async function removeItem(name) {
+      commandInput.value = `Remove ${name}`;
+      handleTextSubmit();
+    }
+
+    // ─── STORE ACTIONS ───
+    function getStoreUrl(item_name) {
+      const store = document.getElementById('storeSelect').value;
+      const encoded = encodeURIComponent(item_name);
+      if (store.includes('Amazon')) return `https://www.amazon.in/s?k=${encoded}&i=nowstore`;
+      if (store.includes('Blinkit')) return `https://blinkit.com/s/?q=${encoded}`;
+      if (store.includes('Zepto')) return `https://www.zeptonow.com/search?q=${encoded}`;
+      if (store.includes('Instamart')) return `https://www.swiggy.com/instamart/search?query=${encoded}`;
+      if (store.includes('BigBasket')) return `https://www.bigbasket.com/ps/?q=${encoded}`;
+      return `https://www.google.com/search?q=buy+${encoded}`;
+    }
+
+    function openSingleItemStore(name) {
+      window.open(getStoreUrl(name), '_blank');
+    }
+
+    document.getElementById('storeCheckoutBtn').addEventListener('click', () => {
+      if (currentCartItems.length === 0) {
+        document.getElementById('statusText').textContent = 'Cart is empty - add items first';
+        return;
+      }
+      currentCartItems.forEach(itm => {
+        window.open(getStoreUrl(itm.name), '_blank');
       });
+    });
+
+    document.getElementById('copyOrderBtn').addEventListener('click', () => {
+      if (currentCartItems.length === 0) return;
+      const text = 'Shopping List:\n' + currentCartItems.map(i => `• ${i.quantity} ${i.unit} ${i.name} (${i.category})`).join('\n');
+      navigator.clipboard.writeText(text);
+      document.getElementById('statusText').textContent = 'Copied grocery list to clipboard';
+    });
+
+    // Initial Load
+    fetch('/api/cart').then(r => r.json()).then(data => {
+      renderCart(data.cart || {});
+      renderRecommendations(data.seasonal_picks || [], data.history_recs || []);
+    }).catch(() => {});
   </script>
 </body>
 </html>
