@@ -593,12 +593,13 @@
     }
     requestAnimationFrame(renderOrb);
 
-    // ─── AUDIO CAPTURE & AUDIO STREAMING ───
+    // ─── AUDIO CAPTURE WITH AUTO-SILENCE DETECTION ───
     let mediaRecorder = null;
     let audioChunks = [];
     let audioContext = null;
     let analyser = null;
-    let silenceTimer = null;
+    let silenceStart = null;
+    let hasSpoken = false;
 
     canvas.addEventListener('click', toggleRecording);
 
@@ -614,7 +615,9 @@
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         isRecording = true;
-        targetEnergy = 0.25;
+        hasSpoken = false;
+        silenceStart = null;
+        targetEnergy = 0.2;
         document.getElementById('statusText').textContent = 'Listening... (speak now)';
         document.getElementById('statusText').style.color = '#38BDF8';
         document.getElementById('transcriptHero').textContent = 'Listening... Speak your items';
@@ -630,13 +633,33 @@
           analyser.getByteFrequencyData(dataArray);
           const sum = dataArray.reduce((a, b) => a + b, 0);
           const avg = sum / dataArray.length;
-          targetEnergy = Math.min(1.0, Math.max(0.08, avg / 45.0));
+          targetEnergy = Math.min(1.0, Math.max(0.08, avg / 40.0));
+
+          // Auto-silence detection (hands-free stop)
+          if (avg > 8) {
+            hasSpoken = true;
+            silenceStart = null;
+            document.getElementById('statusText').textContent = 'Hearing you speak...';
+          } else if (hasSpoken) {
+            if (!silenceStart) silenceStart = Date.now();
+            else if (Date.now() - silenceStart > 900) {
+              // 900ms silence after speech -> auto-stop
+              stopAudioRecording();
+              return;
+            }
+          }
+
           requestAnimationFrame(checkVolume);
         };
         checkVolume();
 
         audioChunks = [];
-        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        let mime = 'audio/webm';
+        if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mime = 'audio/webm;codecs=opus';
+        else if (MediaRecorder.isTypeSupported('audio/webm')) mime = 'audio/webm';
+        else if (MediaRecorder.isTypeSupported('audio/mp4')) mime = 'audio/mp4';
+
+        mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
         mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
         mediaRecorder.onstop = uploadRecordedAudio;
         mediaRecorder.start(250);
@@ -658,7 +681,7 @@
     }
 
     async function uploadRecordedAudio() {
-      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      const blob = new Blob(audioChunks, { type: mediaRecorder ? mediaRecorder.mimeType : 'audio/webm' });
       const formData = new FormData();
       formData.append('file', blob, 'audio.webm');
 
