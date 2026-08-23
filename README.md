@@ -1,3 +1,13 @@
+---
+title: Voice Shopping Assistant
+emoji: 🎙️
+colorFrom: gray
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Voice Shopping Assistant
 
 A hands-free voice-driven shopping list manager with audio preprocessing, speech-to-intent grounding, neural speech feedback, and direct retailer product resolution.
