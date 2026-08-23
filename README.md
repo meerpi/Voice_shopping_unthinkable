@@ -14,23 +14,23 @@ A state-of-the-art, hands-free voice shopping assistant built with **PyQt6**, **
    * **Stage 5 (AGC Normalization):** Automatic Gain Control normalized to -18.0 dBFS Studio RMS with ±0.95 Peak Limiter.
    * **Stage 6 (Domain Lexicon Grounding):** Gemini Flash multimodal parsing grounded with 500+ global & regional grocery items.
 
-2. **Hands-Free Streaming VAD Endpointing:**
-   * Automatically detects speech initiation ($P_{\text{speech}} > 0.45$) and stops recording when silence exceeds **900ms** (zero-touch hands-free auto-stop).
+2. **Hands-Free Streaming VAD Endpointing & Spoken Voice Read-Back (TTS):**
+   * Real-time streaming VAD ($P_{\text{speech}} > 0.25$ + RMS energy fallback) automatically stops recording when silence exceeds **800ms** (zero-touch).
+   * Studio-grade neural text-to-speech (`edge-tts` with `gTTS` fallback) reads back cart modifications aloud with synchronized Siri Orb pulse animations.
 
 3. **Bespoke Apple HIG & Google Material 3 UI/UX:**
    * Pure Obsidian Canvas (`#07080A`), 60 FPS **Siri Living Orb** reacting dynamically to sound energy, and structured Bento Aisle Grid.
 
-4. **Multi-Retailer 1-Click Cart Integrations:**
-   * **⚡ 1-Click Amazon Remote Cart Protocol (`/gp/aws/cart/add.html`):** Maps recognized items to FMCG ASINs and stages all products directly into the Amazon cart in a single request.
-   * **🤖 Quick-Commerce Auto-Cart Agent (Playwright):** Launches browser and automatically clicks "+ ADD" on **Blinkit (10-min)**, **Zepto**, **Swiggy Instamart**, and **BigBasket**.
-   * **↗ Itemized Deep Links & 📋 Clipboard Order Generator.**
+4. **Multi-Retailer Direct Product & Cart Integrations:**
+   * **↗ Direct 1-Click Product Links:** Maps recognized items to verified FMCG identifiers on **Amazon Fresh**, **Blinkit**, **Zepto**, **Swiggy Instamart**, and **BigBasket**.
+   * **📋 Clipboard Order Generator & Search Grounding.**
 
 ---
 
 ## 🏛️ Engineering Approach (200-Word Summary)
 
 > **Engineering Approach:**  
-> Standard speech-to-text systems fail on commodity microphones due to high-frequency roll-off, ambient noise, and acoustic blending of brand names with phonetic priors. To solve this, we engineered a deterministic 6-stage audio pipeline combined with multimodal domain grounding. Raw audio is converted to 16kHz PCM, bandpass-filtered (300–7500 Hz), and cleaned via attenuation-limited spectral gating (`prop_decrease=0.75`) to suppress room noise without clipping weak consonants. Silero VAD provides real-time streaming endpointing (auto-stopping after 900ms silence) and trims dead air, followed by AGC leveling to -18.0 dBFS RMS. The enhanced audio is ingested directly by Gemini Flash, primed with an extensive grocery taxonomy, brand matrix (Amul, Kerrygold, Oatly, Tata), and compound intent parsing rules. For e-commerce execution, recognized items are mapped to verified ASINs/SKUs, enabling 1-click remote cart injection via Amazon’s `/gp/aws/cart/add.html` protocol, alongside a headless Playwright agent for automated cart population across quick-commerce platforms (Blinkit, Zepto, Swiggy Instamart). The native PyQt6 interface provides an Apple-inspired Siri Living Orb and fluid Bento board with zero-touch operation.
+> Standard speech-to-text systems fail on commodity microphones due to high-frequency roll-off, ambient noise, and acoustic blending of brand names with phonetic priors. To solve this, we engineered a deterministic 6-stage audio pipeline combined with multimodal domain grounding. Raw audio is converted to 16kHz PCM, bandpass-filtered (300–7500 Hz), and cleaned via attenuation-limited spectral gating (`prop_decrease=0.75`) to suppress room noise without clipping weak consonants. Silero VAD provides real-time streaming endpointing (auto-stopping after 800ms silence with acoustic energy fallback) and trims dead air, followed by AGC leveling to -18.0 dBFS RMS. The enhanced audio is ingested directly by Gemini Flash, primed with an extensive grocery taxonomy, brand matrix (Amul, Kerrygold, Oatly, Tata), and compound intent parsing rules. For e-commerce execution, recognized items are mapped to verified FMCG identifiers, enabling 1-click direct product staging across Amazon Fresh and quick-commerce platforms (Blinkit, Zepto, Swiggy Instamart). Neural text-to-speech speaks back confirmations in real time. The native PyQt6 interface provides an Apple-inspired Siri Living Orb and fluid Bento board with zero-touch operation.
 
 ---
 
