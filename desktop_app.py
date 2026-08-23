@@ -36,6 +36,8 @@ from retailer_cart_service import (
     run_playwright_quick_commerce_cart
 )
 
+from tts_service import speak_text_sync
+
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QLineEdit, QComboBox, QScrollArea,
@@ -823,6 +825,31 @@ class LuxuryShoppingAssistantApp(QMainWindow):
             self.search_frame.hide()
 
         self.refresh_cart_and_suggestions()
+
+        # Speak back feedback aloud (TTS read-back)
+        if parsed_cmd.feedback_message:
+            self.play_tts_feedback(parsed_cmd.feedback_message)
+
+    def play_tts_feedback(self, text: str):
+        lang = self.lang_select.currentText().split()[0]
+        
+        class TTSThread(QThread):
+            energy = pyqtSignal(object)
+            finished_tts = pyqtSignal()
+            
+            def run(self):
+                try:
+                    speak_text_sync(text, lang_code=lang, visualizer_callback=self.energy.emit)
+                except Exception as e:
+                    print(f"TTS Thread error: {e}")
+                finally:
+                    self.finished_tts.emit()
+
+        self.tts_thread = TTSThread()
+        self.tts_thread.energy.connect(self.siri_orb.update_energy)
+        self.tts_thread.finished_tts.connect(lambda: self.siri_orb.set_speech_active(False))
+        self.siri_orb.set_speech_active(True)
+        self.tts_thread.start()
 
     def on_worker_error(self, err_msg):
         self.status_label.setText(f"Error: {err_msg}")
