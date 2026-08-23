@@ -59,8 +59,8 @@ Standard speech-to-text systems fail on commodity microphones due to high-freque
 
 ### Setup
 ```bash
-git clone <repository-url>
-cd unthinkable
+git clone https://github.com/meerpi/Voice_shopping_unthinkable.git
+cd Voice_shopping_unthinkable
 
 python3 -m venv .venv
 source .venv/bin/activate
