@@ -1,0 +1,16 @@
+{
+  "name": "Voice Shopping Assistant",
+  "short_name": "VoiceCart",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f19",
+  "theme_color": "#2563eb",
+  "description": "Intelligent Multilingual Voice-Activated Shopping List Manager",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3081/3081840.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
