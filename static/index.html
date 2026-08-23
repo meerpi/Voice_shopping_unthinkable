@@ -732,25 +732,76 @@
 
     async function sendTextCommand(text, alternatives = []) {
       if (!text.trim()) return;
-      statusText.textContent = '🧠 Processing with Gemini Flash...';
+      statusText.textContent = 'Processing command...';
       try {
         const res = await fetch('/api/voice-command', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ transcript: text, alternatives: alternatives })
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         handleBackendResponse(data);
       } catch (err) {
-        statusText.textContent = `Error: ${err.message}`;
+        // Fallback for static hosts (GitHub Pages)
+        processClientSideCommand(text);
       }
     }
 
+    function processClientSideCommand(text) {
+      const clean = text.toLowerCase().replace(/^(add|i want|please buy|buy|put)\s+/i, '').trim();
+      const qtyMatch = clean.match(/^(\d+)\s*(kg|g|litre|liter|pack|packs|bottles|pieces|items)?\s*(.+)$/i);
+      let qty = 1, unit = 'item', name = clean;
+      if (qtyMatch) {
+        qty = parseFloat(qtyMatch[1]);
+        unit = qtyMatch[2] || 'item';
+        name = qtyMatch[3];
+      }
+      name = name.charAt(0).toUpperCase() + name.slice(1);
+      
+      let cat = 'Pantry';
+      if (/milk|butter|cheese|ghee|egg|paneer|curd|yogurt/i.test(name)) cat = 'Dairy & Eggs';
+      else if (/apple|banana|mango|potato|onion|tomato|jackfruit|pea|spinach|guava/i.test(name)) cat = 'Produce';
+      else if (/chicken|meat|fish|prawn|salmon/i.test(name)) cat = 'Meat & Seafood';
+      else if (/bread|croissant|bagel|bun/i.test(name)) cat = 'Bakery';
+      else if (/chips|cookie|biscuit|chocolate|nut/i.test(name)) cat = 'Snacks';
+      else if (/soap|shampoo|toothpaste|brush|lotion/i.test(name)) cat = 'Personal Care';
+
+      // Update local cart
+      if (!window.localCart) window.localCart = {};
+      if (!window.localCart[cat]) window.localCart[cat] = [];
+      window.localCart[cat].push({
+        name: name,
+        base_name: name.toLowerCase(),
+        quantity: qty,
+        unit: unit,
+        category: cat,
+        completed: false
+      });
+
+      const feedback = `Added ${qty} ${unit} of ${name} to ${cat}.`;
+      handleBackendResponse({
+        transcript: text,
+        messages: [feedback],
+        tts_message: feedback,
+        cart: window.localCart,
+        seasonal_picks: ['Watermelon', 'Mangoes', 'Peaches', 'Sweet Corn'],
+        substitutes: ['Oat Milk', 'Almond Milk', 'Soy Milk'],
+        history_recs: ['Bread', 'Butter', 'Eggs']
+      });
+    }
+
     function handleBackendResponse(data) {
+      if (!data) return;
+      if (data.error) {
+        statusText.textContent = 'Notice: ' + data.error;
+        return;
+      }
       transcriptBox.textContent = `Heard: "${data.transcript || 'Command'}"`;
-      statusText.textContent = data.messages.join(' | ') || 'Done!';
-      renderCart(data.cart);
-      renderSuggestions(data.seasonal_picks, data.substitutes, data.history_recs);
+      const msgs = Array.isArray(data.messages) ? data.messages.join(' | ') : (data.messages || data.tts_message || data.feedback_message || 'Done!');
+      statusText.textContent = msgs;
+      renderCart(data.cart || {});
+      renderSuggestions(data.seasonal_picks || [], data.substitutes || [], data.history_recs || []);
       
       if (data.tts_message) {
         speakFeedback(data.tts_message, langSelect.value);
