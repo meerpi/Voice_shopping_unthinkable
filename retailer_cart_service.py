@@ -1,4 +1,5 @@
 import os
+import time
 import urllib.parse
 from typing import List, Dict, Tuple
 
@@ -114,17 +115,17 @@ def run_playwright_quick_commerce_cart(store_name: str, cart_items: List[Dict], 
     results = []
     with sync_playwright() as p:
         if progress_callback:
-            progress_callback(f"Launching {store_name}...")
+            progress_callback(f"Launching browser for {store_name}...")
         
         chrome_path = "/usr/bin/google-chrome-stable" if os.path.exists("/usr/bin/google-chrome-stable") else None
-        launch_kwargs = {"headless": False, "slow_mo": 400}
+        launch_kwargs = {"headless": False, "slow_mo": 300}
         if chrome_path:
             launch_kwargs["executable_path"] = chrome_path
             
         browser = p.chromium.launch(**launch_kwargs)
         context = browser.new_context(
-            viewport={"width": 1280, "height": 840},
-            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
+            viewport={"width": 1280, "height": 860},
+            user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         )
         page = context.new_page()
         
@@ -134,59 +135,87 @@ def run_playwright_quick_commerce_cart(store_name: str, cart_items: List[Dict], 
                 encoded = urllib.parse.quote_plus(name)
                 
                 if progress_callback:
-                    progress_callback(f"Adding ({i+1}/{len(cart_items)}): {name}...")
+                    progress_callback(f"Adding ({i+1}/{len(cart_items)}): {name} on {store_name}...")
                 
-                if "Blinkit" in store_name:
-                    page.goto(f"https://blinkit.com/s/?q={encoded}", wait_until="domcontentloaded", timeout=12000)
-                    page.wait_for_timeout(1200)
-                    add_btn = page.locator('button:has-text("ADD"), div[role="button"]:has-text("ADD")').first
+                # ── 1. AMAZON FRESH / AMAZON ──
+                if "Amazon" in store_name:
+                    page.goto(f"https://www.amazon.in/s?k={encoded}&i=nowstore", wait_until="domcontentloaded", timeout=15000)
+                    page.wait_for_timeout(1500)
+                    add_btn = page.locator('button:has-text("Add to Cart"), input[name="submit.addToCart"], span:has-text("Add to Cart")').first
                     if add_btn.is_visible(timeout=3000):
                         add_btn.click()
-                        results.append({"name": name, "status": "Added"})
-                    else:
-                        results.append({"name": name, "status": "Searched"})
-                        
-                elif "Zepto" in store_name:
-                    page.goto(f"https://www.zeptonow.com/search?q={encoded}", wait_until="domcontentloaded", timeout=12000)
-                    page.wait_for_timeout(1200)
-                    add_btn = page.locator('button:has-text("Add"), button:has-text("ADD")').first
-                    if add_btn.is_visible(timeout=3000):
-                        add_btn.click()
-                        results.append({"name": name, "status": "Added"})
-                    else:
-                        results.append({"name": name, "status": "Searched"})
-                        
-                elif "Swiggy" in store_name:
-                    page.goto(f"https://www.swiggy.com/instamart/search?query={encoded}", wait_until="domcontentloaded", timeout=12000)
-                    page.wait_for_timeout(1200)
-                    add_btn = page.locator('div:has-text("ADD"), button:has-text("ADD")').first
-                    if add_btn.is_visible(timeout=3000):
-                        add_btn.click()
-                        results.append({"name": name, "status": "Added"})
-                    else:
-                        results.append({"name": name, "status": "Searched"})
-                        
-                elif "BigBasket" in store_name:
-                    page.goto(f"https://www.bigbasket.com/ps/?q={encoded}", wait_until="domcontentloaded", timeout=12000)
-                    page.wait_for_timeout(1200)
-                    add_btn = page.locator('button:has-text("Add"), button:has-text("ADD")').first
-                    if add_btn.is_visible(timeout=3000):
-                        add_btn.click()
-                        results.append({"name": name, "status": "Added"})
+                        results.append({"name": name, "status": "Added to Amazon Cart"})
                     else:
                         results.append({"name": name, "status": "Searched"})
 
+                # ── 2. BLINKIT ──
+                elif "Blinkit" in store_name:
+                    page.goto(f"https://blinkit.com/s/?q={encoded}", wait_until="domcontentloaded", timeout=15000)
+                    page.wait_for_timeout(1500)
+                    add_btn = page.locator('button:has-text("ADD"), div[role="button"]:has-text("ADD"), div:has-text("ADD")').first
+                    if add_btn.is_visible(timeout=3000):
+                        add_btn.click()
+                        results.append({"name": name, "status": "Added to Blinkit Cart"})
+                    else:
+                        results.append({"name": name, "status": "Searched"})
+                        
+                # ── 3. ZEPTO ──
+                elif "Zepto" in store_name:
+                    page.goto(f"https://www.zeptonow.com/search?q={encoded}", wait_until="domcontentloaded", timeout=15000)
+                    page.wait_for_timeout(1500)
+                    add_btn = page.locator('button:has-text("Add"), button:has-text("ADD"), span:has-text("Add")').first
+                    if add_btn.is_visible(timeout=3000):
+                        add_btn.click()
+                        results.append({"name": name, "status": "Added to Zepto Cart"})
+                    else:
+                        results.append({"name": name, "status": "Searched"})
+                        
+                # ── 4. SWIGGY INSTAMART ──
+                elif "Instamart" in store_name or "Swiggy" in store_name:
+                    page.goto(f"https://www.swiggy.com/instamart/search?query={encoded}", wait_until="domcontentloaded", timeout=15000)
+                    page.wait_for_timeout(1500)
+                    add_btn = page.locator('div:has-text("ADD"), button:has-text("ADD")').first
+                    if add_btn.is_visible(timeout=3000):
+                        add_btn.click()
+                        results.append({"name": name, "status": "Added to Instamart Cart"})
+                    else:
+                        results.append({"name": name, "status": "Searched"})
+                        
+                # ── 5. BIGBASKET ──
+                elif "BigBasket" in store_name:
+                    page.goto(f"https://www.bigbasket.com/ps/?q={encoded}", wait_until="domcontentloaded", timeout=15000)
+                    page.wait_for_timeout(1500)
+                    add_btn = page.locator('button:has-text("Add"), button:has-text("ADD")').first
+                    if add_btn.is_visible(timeout=3000):
+                        add_btn.click()
+                        results.append({"name": name, "status": "Added to BigBasket Cart"})
+                    else:
+                        results.append({"name": name, "status": "Searched"})
+
+            # Navigate to final cart screen
             if progress_callback:
-                progress_callback(f"Opening cart on {store_name}...")
+                progress_callback(f"Opening final cart on {store_name}...")
                 
-            if "Blinkit" in store_name:
+            if "Amazon" in store_name:
+                page.goto("https://www.amazon.in/gp/cart/view.html")
+            elif "Blinkit" in store_name:
                 page.goto("https://blinkit.com/cart")
             elif "Zepto" in store_name:
                 page.goto("https://www.zeptonow.com/cart")
             elif "BigBasket" in store_name:
                 page.goto("https://www.bigbasket.com/basket/")
+            elif "Instamart" in store_name:
+                page.goto("https://www.swiggy.com/instamart")
                 
-            page.wait_for_timeout(3500)
+            if progress_callback:
+                progress_callback(f"✅ Items staged in {store_name} cart! Ready for checkout.")
+            
+            # Keep browser alive so user can review and pay
+            for _ in range(30):
+                if page.is_closed():
+                    break
+                page.wait_for_timeout(1000)
+                
             return {"success": True, "items": results}
         except Exception as err:
             return {"success": False, "error": str(err)}
