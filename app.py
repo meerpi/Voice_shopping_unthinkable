@@ -180,13 +180,46 @@ CATEGORY_LOOKUP = {
     "Household": ["detergent", "dish soap", "paper towels", "tissue", "cleaner", "trash bags"]
 }
 
+# Comprehensive Indian FMCG & Grocery Brand Database
 BRAND_DEFAULTS = {
+    # Dairy & Breakfast
     "butter": "Amul", "milk": "Amul", "ghee": "Amul", "paneer": "Amul", "cheese": "Amul",
-    "eggs": "Eggoz", "rice": "Daawat", "atta": "Aashirvaad", "salt": "Tata",
-    "tea": "Red Label", "coffee": "Nescafe", "toothpaste": "Colgate",
-    "corn flakes": "Kellogg's", "oats": "Quaker", "chips": "Lay's",
-    "sweet corn": "Del Monte", "jackfruit": "Nature's Charm", "olive oil": "Borges"
+    "curd": "Mother Dairy", "yogurt": "Epigamia", "dahi": "Mother Dairy",
+    "eggs": "Eggoz", "bread": "Britannia", "corn flakes": "Kellogg's", "oats": "Quaker",
+    "muesli": "Kellogg's", "poha": "Tata Sampann", "honey": "Dabur",
+    # Staples, Grains & Pulses
+    "rice": "Daawat", "basmati rice": "India Gate", "atta": "Aashirvaad", "flour": "Aashirvaad",
+    "maida": "Aashirvaad", "besan": "Tata Sampann", "dal": "Tata Sampann",
+    "toor dal": "Tata Sampann", "moong dal": "Tata Sampann", "chana dal": "Tata Sampann",
+    "salt": "Tata", "sugar": "Madhur", "mustard oil": "Fortune", "sunflower oil": "Fortune",
+    "oil": "Fortune", "refined oil": "Fortune", "olive oil": "Borges", "ghee": "Amul",
+    # Spices & Condiments
+    "turmeric": "MDH", "haldi": "MDH", "red chilli": "Everest", "garam masala": "Everest",
+    "spices": "Catch", "ketchup": "Kissan", "sauce": "Maggi", "mayonnaise": "Veeba",
+    # Tea, Coffee & Beverages
+    "tea": "Tata Tea Gold", "chai": "Red Label", "green tea": "Tetley",
+    "coffee": "Nescafe Classic", "instant coffee": "Bru", "juice": "Real",
+    "coconut water": "Raw Pressery", "syrup": "Rooh Afza",
+    # Snacks & Quick Cooking
+    "noodles": "Maggi", "pasta": "Barilla", "biscuits": "Parle-G", "cookies": "Good Day",
+    "rusk": "Britannia", "chips": "Lay's", "namkeen": "Haldiram's", "bhujia": "Bikaji",
+    # Personal Care & Cleaning
+    "toothpaste": "Colgate Total", "toothbrush": "Oral-B", "soap": "Dettol", "shampoo": "Dove",
+    "detergent": "Surf Excel", "dish soap": "Vim", "handwash": "Dettol", "floor cleaner": "Lizol",
+    # Produce & Speciality
+    "sweet corn": "Del Monte", "jackfruit": "Nature's Charm", "mushrooms": "Urban Platter"
 }
+
+KNOWN_INDIAN_BRANDS = [
+    "Amul", "Mother Dairy", "Nandini", "Gowardhan", "Epigamia", "Country Delight",
+    "Aashirvaad", "Fortune", "Tata", "Tata Sampann", "Tata Tea", "Daawat", "India Gate",
+    "Madhur", "Patanjali", "Dabur", "MDH", "Everest", "Catch", "Red Label", "Taj Mahal",
+    "Wagh Bakri", "Nescafe", "Bru", "Parle-G", "Parle", "Britannia", "Sunfeast",
+    "Haldiram's", "Haldiram", "Bikaji", "Balaji", "Lay's", "Lays", "Kurkure", "Bingo",
+    "Maggi", "Top Ramen", "Yippee", "Kellogg's", "Quaker", "MTR", "Kissan", "Veeba",
+    "Del Monte", "Colgate", "Sensodyne", "Dettol", "Lifebuoy", "Surf Excel", "Ariel",
+    "Vim", "Lizol", "Harpic", "Godrej", "Dove", "Pears", "Oatly", "Kerrygold"
+]
 
 def infer_category_and_brand(name: str) -> tuple:
     n = name.lower().strip()
@@ -195,12 +228,21 @@ def infer_category_and_brand(name: str) -> tuple:
         if any(k in n or n in k for k in keywords):
             category = cat
             break
-            
+
+    # First check if user explicitly stated a known brand
     brand = None
-    for item_key, default_brand in BRAND_DEFAULTS.items():
-        if item_key in n:
-            brand = default_brand
+    for b in KNOWN_INDIAN_BRANDS:
+        if b.lower() in n:
+            brand = b
             break
+
+    # If no brand stated, look up curated default for the grocery staple
+    if not brand:
+        for item_key, default_brand in BRAND_DEFAULTS.items():
+            if item_key in n:
+                brand = default_brand
+                break
+
     return category, brand
 
 class ShoppingCart:
