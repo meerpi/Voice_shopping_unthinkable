@@ -773,7 +773,7 @@
       document.getElementById('statusText').style.color = '#9CA3AF';
 
       renderCart(data.cart || {});
-      renderRecommendations(data.seasonal_picks || [], data.history_recs || []);
+      renderRecommendations(data.seasonal_picks || [], data.history_recs || [], data.substitutes || []);
 
       if (data.search_results && data.search_results.length > 0) {
         renderSearchResults(data.search_results);
@@ -876,9 +876,22 @@
       });
     }
 
-    function renderRecommendations(seasonal, history) {
+    function renderRecommendations(seasonal, history, substitutes = []) {
       const rack = document.getElementById('pillRack');
       rack.innerHTML = '';
+
+      if (substitutes && substitutes.length > 0) {
+        substitutes.slice(0, 3).forEach(item => {
+          const btn = document.createElement('button');
+          btn.className = 'suggestion-pill';
+          btn.style.borderColor = 'rgba(168, 85, 247, 0.4)';
+          btn.style.backgroundColor = 'rgba(168, 85, 247, 0.12)';
+          btn.style.color = '#C084FC';
+          btn.textContent = '🔄 Try ' + item;
+          btn.onclick = () => quickAddItem(item);
+          rack.appendChild(btn);
+        });
+      }
 
       seasonal.forEach(item => {
         const btn = document.createElement('button');
