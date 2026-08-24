@@ -2,7 +2,9 @@
 
 A hands-free, voice-enabled grocery shopping assistant that converts spoken natural language into an organized, categorized shopping list with brand resolution, smart substitutions, and direct retailer checkout links.
 
-Available both as a **native desktop application (PyQt6)** and a **web application (FastAPI)**.
+🌐 **Live Hosted Application:** [https://voice-shopping-unthinkable.onrender.com/](https://voice-shopping-unthinkable.onrender.com/)
+
+Available both as a **live web application (FastAPI)** and a **native desktop application (PyQt6)**.
 
 ---
 
