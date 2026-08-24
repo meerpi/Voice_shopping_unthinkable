@@ -20,7 +20,6 @@ from app import (
     search_open_food_facts,
     enhance_audio,
     VoiceCommandResult,
-    ExtractedItem,
     FLASH_MODELS,
     EXPANDED_GROCERY_PROMPT,
     gemini_client,
@@ -821,8 +820,17 @@ class LuxuryShoppingAssistantApp(QMainWindow):
 
                 name_lbl = QLabel(itm['name'], card)
                 name_lbl.setStyleSheet("color: #FFFFFF; font-size: 13px; font-weight: 600;")
+                itm_row.addWidget(name_lbl)
+
+                if itm.get('brand_hint'):
+                    brand_badge = QLabel(itm['brand_hint'].upper(), card)
+                    brand_badge.setStyleSheet("color: #38BDF8; background: rgba(56, 189, 248, 0.12); font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 4px; letter-spacing: 0.5px;")
+                    itm_row.addWidget(brand_badge)
+
                 qty_lbl = QLabel(f"{itm['quantity']:g} {itm['unit']}", card)
                 qty_lbl.setStyleSheet("color: #9CA3AF; font-size: 11px; background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 6px;")
+                itm_row.addWidget(qty_lbl)
+                itm_row.addStretch()
 
                 store_btn = QPushButton("↗", card)
                 store_btn.setFixedSize(22, 22)
@@ -837,9 +845,6 @@ class LuxuryShoppingAssistantApp(QMainWindow):
                 del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
                 del_btn.clicked.connect(lambda ch, n=itm['base_name']: self.remove_item(n))
 
-                itm_row.addWidget(name_lbl)
-                itm_row.addWidget(qty_lbl)
-                itm_row.addStretch()
                 itm_row.addWidget(store_btn)
                 itm_row.addWidget(del_btn)
                 card_layout.addLayout(itm_row)

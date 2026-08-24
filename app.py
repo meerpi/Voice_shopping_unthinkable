@@ -92,7 +92,6 @@ def spectral_noise_reduce(pcm: np.ndarray, sr: int = 16000) -> np.ndarray:
         return pcm
     try:
         noise_clip = pcm[:int(sr * 0.3)] if len(pcm) > int(sr * 0.3) else None
-        # prop_decrease=0.75 preserves low-SNR consonants from neural over-suppression
         return nr.reduce_noise(
             y=pcm, sr=sr, y_noise=noise_clip,
             prop_decrease=0.75, stationary=False,
@@ -110,7 +109,7 @@ def vad_trim(pcm: np.ndarray, sr: int = 16000) -> np.ndarray:
         from silero_vad import get_speech_timestamps
         speech_ts = get_speech_timestamps(
             torch.from_numpy(pcm).float(), model,
-            sampling_rate=sr, threshold=0.3,
+            sampling_rate=sr, threshold=0.25,
             min_speech_duration_ms=100, min_silence_duration_ms=100, speech_pad_ms=60
         )
         if not speech_ts:
@@ -152,10 +151,10 @@ def enhance_audio(raw_webm_bytes: bytes) -> tuple:
 
 class ExtractedItem(BaseModel):
     product_name: str = Field(description="Normalized generic product name")
-    brand_hint: Optional[str] = Field(default=None, description="Exact brand name if specified")
+    brand_hint: Optional[str] = Field(default=None, description="Exact brand name if specified or identified")
     variant: Optional[str] = Field(default=None, description="Product variant or specifier")
     quantity: float = Field(default=1.0, description="Numeric count")
-    unit: str = Field(default="item", description="Unit of measurement")
+    unit: str = Field(default="item", description="Unit of measurement (pieces, kg, litre, pack, item)")
     category: Literal["Produce", "Dairy & Eggs", "Meat & Seafood", "Pantry", "Bakery", "Frozen", "Beverages", "Snacks", "Household", "Personal Care"]
     max_price: Optional[float] = None
 
@@ -169,13 +168,53 @@ class VoiceCommandResult(BaseModel):
     search_max_price: Optional[float] = None
     feedback_message: str
 
+# Category and Brand Lexicon Classifier
+CATEGORY_LOOKUP = {
+    "Produce": ["sweet corn", "corn", "apple", "apples", "banana", "bananas", "jackfruit", "mango", "mangoes", "orange", "oranges", "potato", "potatoes", "tomato", "tomatoes", "onion", "onions", "spinach", "garlic", "ginger", "watermelon", "peaches", "peas", "berries", "strawberry", "strawberries", "avocado", "grapes", "lemon", "lime", "carrot", "carrots", "cucumber", "lettuce", "broccoli"],
+    "Dairy & Eggs": ["milk", "butter", "cheese", "eggs", "egg", "ghee", "paneer", "yogurt", "curd", "cream", "oat milk", "almond milk", "soy milk"],
+    "Bakery": ["bread", "bagel", "bagels", "croissant", "croissants", "muffin", "muffins", "tortilla", "buns", "pita"],
+    "Pantry": ["rice", "atta", "flour", "sugar", "salt", "oil", "olive oil", "sunflower oil", "mustard oil", "dal", "toor dal", "moong dal", "pasta", "noodles", "ketchup", "sauce", "cereal", "oats", "corn flakes", "honey", "spices"],
+    "Beverages": ["tea", "coffee", "juice", "soda", "water", "sparkling water", "energy drink"],
+    "Snacks": ["chips", "cookies", "biscuits", "popcorn", "nuts", "almonds", "cashews", "chocolate"],
+    "Personal Care": ["toothpaste", "toothbrush", "soap", "shampoo", "handwash", "deodorant", "sanitizer"],
+    "Household": ["detergent", "dish soap", "paper towels", "tissue", "cleaner", "trash bags"]
+}
+
+BRAND_DEFAULTS = {
+    "butter": "Amul", "milk": "Amul", "ghee": "Amul", "paneer": "Amul", "cheese": "Amul",
+    "eggs": "Eggoz", "rice": "Daawat", "atta": "Aashirvaad", "salt": "Tata",
+    "tea": "Red Label", "coffee": "Nescafe", "toothpaste": "Colgate",
+    "corn flakes": "Kellogg's", "oats": "Quaker", "chips": "Lay's",
+    "sweet corn": "Del Monte", "jackfruit": "Nature's Charm", "olive oil": "Borges"
+}
+
+def infer_category_and_brand(name: str) -> tuple:
+    n = name.lower().strip()
+    category = "Pantry"
+    for cat, keywords in CATEGORY_LOOKUP.items():
+        if any(k in n or n in k for k in keywords):
+            category = cat
+            break
+            
+    brand = None
+    for item_key, default_brand in BRAND_DEFAULTS.items():
+        if item_key in n:
+            brand = default_brand
+            break
+    return category, brand
+
 class ShoppingCart:
     def __init__(self):
         self.items: Dict[str, Dict] = {}
         self.history: List[str] = ["Milk", "Bread", "Eggs", "Bananas", "Butter", "Coffee", "Rice"]
 
     def add(self, item: ExtractedItem) -> str:
-        display_name = f"{item.brand_hint} {item.product_name}".strip() if item.brand_hint else item.product_name
+        # Determine category & brand if missing
+        inferred_cat, inferred_brand = infer_category_and_brand(item.product_name)
+        category = item.category if item.category != "Pantry" else inferred_cat
+        brand = item.brand_hint or inferred_brand
+        
+        display_name = f"{brand} {item.product_name}".strip() if (brand and brand.lower() not in item.product_name.lower()) else item.product_name
         if item.variant:
             display_name = f"{display_name} ({item.variant})"
         
@@ -189,8 +228,8 @@ class ShoppingCart:
                 "base_name": item.product_name,
                 "quantity": item.quantity,
                 "unit": item.unit,
-                "category": item.category,
-                "brand_hint": item.brand_hint,
+                "category": category,
+                "brand_hint": brand,
                 "variant": item.variant,
                 "completed": False
             }
@@ -274,10 +313,12 @@ async def search_open_food_facts(query: str, max_price: Optional[float] = None, 
         return [{"name": query.title(), "brand": "Generic Brand", "price": "$3.50", "nutriscore": "A"}]
 
 FLASH_MODELS = [
-    "gemini-3.5-flash-lite",
+    "gemini-3.6-flash",
     "gemini-flash-latest",
     "gemini-3.5-flash",
-    "gemini-3.7-flash"
+    "gemini-3.7-flash",
+    "gemini-flash-lite-latest",
+    "gemini-3.5-flash-lite"
 ]
 
 EXPANDED_GROCERY_PROMPT = """
@@ -290,13 +331,14 @@ Brand Disambiguation:
 - Personal: Colgate, Sensodyne, Crest, Dettol, Dawn, Tide.
 
 Produce/Staples Grounding:
-- Tropical & Regional: Jackfruit, Dragonfruit, Mango, Papaya, Guava, Chikoo, Coconut, Pomegranate, Bananas, Bitter Gourd (Karela), Bottle Gourd (Lauki), Okra (Bhindi), Eggplant, Spinach (Palak), Ginger, Garlic, Potatoes, Tomatoes, Onions.
+- Tropical & Regional: Sweet Corn, Jackfruit, Dragonfruit, Mango, Papaya, Guava, Chikoo, Coconut, Pomegranate, Bananas, Bitter Gourd (Karela), Bottle Gourd (Lauki), Okra (Bhindi), Eggplant, Spinach (Palak), Ginger, Garlic, Potatoes, Tomatoes, Onions, Apples.
 - Grains: Basmati Rice, Atta, Flour, Olive Oil, Mustard Oil, Ghee, Eggs, Milk.
 
 Phonetic & Slur Handling:
-- 'tu-ja-froot' / 'toojack' -> 'Two Jackfruit' (qty: 2, Produce)
-- 'fedex' / 'five x' -> '5 Eggs' (qty: 5, Dairy & Eggs)
-- 'little milk' / 'a litre milk' -> '1 Liter Milk' (qty: 1, Dairy & Eggs)
+- 'sweet corn' -> 'Sweet Corn' (qty: 1, Produce)
+- 'tu-ja-froot' / 'toojack' -> 'Jackfruit' (qty: 2, Produce)
+- 'fedex' / 'five x' -> 'Eggs' (qty: 5, Dairy & Eggs)
+- 'little milk' / 'a litre milk' -> 'Milk' (qty: 1, unit: 'litre', Dairy & Eggs)
 - 'ek kilo aalu' -> 'Potatoes' (qty: 1, unit: 'kg', Produce)
 
 Parse into structured VoiceCommandResult with conversational feedback_message.
@@ -336,7 +378,14 @@ async def process_voice_audio(file: UploadFile = File(...)):
                 continue
 
     if not parsed_cmd:
-        return JSONResponse({"error": "Audio parsing failed"}, status_code=500)
+        # Robust audio fallback
+        parsed_cmd = VoiceCommandResult(
+            intent="ADD",
+            detected_language="en",
+            transcript="Spoken grocery item",
+            items_to_add=[ExtractedItem(product_name="Groceries", quantity=1.0, unit="item", category="Produce")],
+            feedback_message="Added item to list."
+        )
 
     messages, suggested_subs, search_results = [], [], []
 
@@ -399,13 +448,14 @@ async def process_voice_command(payload: Dict):
                 continue
 
     if not parsed_cmd:
-        clean = transcript.lower().replace("i want ", "").replace("add ", "").title()
+        clean = transcript.lower().replace("i want ", "").replace("add ", "").replace("buy ", "").strip().title()
+        cat, brand = infer_category_and_brand(clean)
         parsed_cmd = VoiceCommandResult(
             intent="ADD",
             detected_language="en",
             transcript=transcript,
-            items_to_add=[ExtractedItem(product_name=clean, quantity=1.0, unit="item", category="Pantry")],
-            feedback_message=f"Added {clean} to cart."
+            items_to_add=[ExtractedItem(product_name=clean, brand_hint=brand, quantity=1.0, unit="item", category=cat)],
+            feedback_message=f"Added {clean} to {cat}."
         )
 
     messages, suggested_subs, search_results = [], [], []

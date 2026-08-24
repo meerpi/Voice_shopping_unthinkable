@@ -364,6 +364,17 @@
       border-radius: 6px;
     }
 
+    .brand-badge {
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--accent-blue);
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
     .item-actions {
       display: flex;
       align-items: center;
@@ -593,13 +604,15 @@
     }
     requestAnimationFrame(renderOrb);
 
-    // ─── AUDIO CAPTURE WITH AUTO-SILENCE DETECTION ───
+    // ─── DUAL ENGINE SPEECH CAPTURE ───
     let mediaRecorder = null;
     let audioChunks = [];
     let audioContext = null;
     let analyser = null;
     let silenceStart = null;
     let hasSpoken = false;
+    let speechRecognizer = null;
+    let liveBrowserTranscript = '';
 
     canvas.addEventListener('click', toggleRecording);
 
@@ -617,10 +630,30 @@
         isRecording = true;
         hasSpoken = false;
         silenceStart = null;
+        liveBrowserTranscript = '';
         targetEnergy = 0.2;
         document.getElementById('statusText').textContent = 'Listening... (speak now)';
         document.getElementById('statusText').style.color = '#38BDF8';
         document.getElementById('transcriptHero').textContent = 'Listening... Speak your items';
+
+        // Parallel Browser Speech Recognition for instant 100% transcript fallback
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRec) {
+          try {
+            speechRecognizer = new SpeechRec();
+            speechRecognizer.lang = document.getElementById('langSelect').value;
+            speechRecognizer.continuous = false;
+            speechRecognizer.interimResults = true;
+            speechRecognizer.onresult = (e) => {
+              const res = Array.from(e.results).map(r => r[0].transcript).join(' ');
+              if (res) {
+                liveBrowserTranscript = res;
+                document.getElementById('transcriptHero').textContent = `“${res}”`;
+              }
+            };
+            speechRecognizer.start();
+          } catch(e) {}
+        }
 
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         analyser = audioContext.createAnalyser();
@@ -635,7 +668,6 @@
           const avg = sum / dataArray.length;
           targetEnergy = Math.min(1.0, Math.max(0.08, avg / 40.0));
 
-          // Auto-silence detection (hands-free stop)
           if (avg > 8) {
             hasSpoken = true;
             silenceStart = null;
@@ -643,7 +675,6 @@
           } else if (hasSpoken) {
             if (!silenceStart) silenceStart = Date.now();
             else if (Date.now() - silenceStart > 900) {
-              // 900ms silence after speech -> auto-stop
               stopAudioRecording();
               return;
             }
@@ -671,26 +702,48 @@
     }
 
     function stopAudioRecording() {
-      if (mediaRecorder && isRecording) {
+      if (isRecording) {
         isRecording = false;
         targetEnergy = 0.05;
-        document.getElementById('statusText').textContent = 'Parsing with Gemini...';
-        mediaRecorder.stop();
+        document.getElementById('statusText').textContent = 'Processing request...';
+        if (speechRecognizer) {
+          try { speechRecognizer.stop(); } catch(e) {}
+        }
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
         if (audioContext) audioContext.close();
       }
     }
 
     async function uploadRecordedAudio() {
-      const blob = new Blob(audioChunks, { type: mediaRecorder ? mediaRecorder.mimeType : 'audio/webm' });
-      const formData = new FormData();
-      formData.append('file', blob, 'audio.webm');
+      // 1. Try server audio processing
+      let success = false;
+      if (audioChunks.length > 0) {
+        const blob = new Blob(audioChunks, { type: mediaRecorder ? mediaRecorder.mimeType : 'audio/webm' });
+        const formData = new FormData();
+        formData.append('file', blob, 'audio.webm');
 
-      try {
-        const resp = await fetch('/api/voice-audio', { method: 'POST', body: formData });
-        const data = await resp.json();
-        handleBackendResponse(data);
-      } catch (err) {
-        document.getElementById('statusText').textContent = 'Server error: ' + err.message;
+        try {
+          const resp = await fetch('/api/voice-audio', { method: 'POST', body: formData });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data && !data.error) {
+              handleBackendResponse(data);
+              success = true;
+            }
+          }
+        } catch (err) {
+          console.warn('Audio endpoint error:', err);
+        }
+      }
+
+      // 2. Fallback to transcript dispatch
+      if (!success && liveBrowserTranscript) {
+        commandInput.value = liveBrowserTranscript;
+        handleTextSubmit();
+      } else if (!success) {
+        document.getElementById('statusText').textContent = 'Could not capture voice clearly. Try again or type.';
       }
     }
 
@@ -795,9 +848,22 @@
           const row = document.createElement('div');
           row.className = 'item-row';
 
+          const nameContainer = document.createElement('div');
+          nameContainer.style.display = 'flex';
+          nameContainer.style.alignItems = 'center';
+          nameContainer.style.gap = '6px';
+
           const nameSpan = document.createElement('span');
           nameSpan.className = 'item-name';
           nameSpan.textContent = itm.name;
+          nameContainer.appendChild(nameSpan);
+
+          if (itm.brand_hint) {
+            const brandBadge = document.createElement('span');
+            brandBadge.className = 'brand-badge';
+            brandBadge.textContent = itm.brand_hint;
+            nameContainer.appendChild(brandBadge);
+          }
 
           const qtySpan = document.createElement('span');
           qtySpan.className = 'item-qty';
@@ -821,7 +887,7 @@
           actions.appendChild(storeLink);
           actions.appendChild(delBtn);
 
-          row.appendChild(nameSpan);
+          row.appendChild(nameContainer);
           row.appendChild(qtySpan);
           row.appendChild(actions);
           card.appendChild(row);
