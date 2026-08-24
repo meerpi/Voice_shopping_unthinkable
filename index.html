@@ -69,11 +69,11 @@
       }
     }
 
-    /* Left Control Sidebar (Apple macOS Inspector style) */
+    /* Left Control Sidebar (Sharp structural frame) */
     .side-panel {
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 2px;
       padding: 18px;
       display: flex;
       flex-direction: column;
@@ -97,10 +97,11 @@
     }
 
     .app-title {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 700;
       color: #FFFFFF;
-      letter-spacing: -0.2px;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
     }
 
     .app-desc {
@@ -112,7 +113,7 @@
     .select-dropdown {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 2px;
       padding: 4px 8px;
       font-size: 11px;
       color: var(--text-sub);
@@ -125,7 +126,7 @@
       color: #FFFFFF;
     }
 
-    /* Siri Orb Controller */
+    /* Siri Orb Controller (Soft circular contrast) */
     .voice-control-box {
       display: flex;
       flex-direction: column;
@@ -150,8 +151,8 @@
       gap: 6px;
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 3px 8px;
+      border-radius: 12px;
+      padding: 3px 10px;
       font-size: 11px;
       font-weight: 500;
       color: var(--text-sub);
@@ -164,11 +165,11 @@
       background: var(--green);
     }
 
-    /* Live Transcript Display */
+    /* Live Transcript Display (Sharp technical card) */
     .transcript-card {
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 2px;
       padding: 10px 12px;
       min-height: 50px;
       display: flex;
@@ -189,7 +190,7 @@
       color: var(--text-muted);
     }
 
-    /* Input Field & Buttons */
+    /* Input Field & Buttons (Sharp precision controls) */
     .input-wrapper {
       display: flex;
       flex-direction: column;
@@ -200,7 +201,7 @@
       width: 100%;
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 2px;
       padding: 8px 10px;
       font-size: 12px;
       color: #FFFFFF;
@@ -221,7 +222,7 @@
       background: #FFFFFF;
       color: #0C0D12;
       border: 1px solid transparent;
-      border-radius: 6px;
+      border-radius: 2px;
       padding: 7px 12px;
       font-size: 12px;
       font-weight: 600;
@@ -236,7 +237,7 @@
       background: transparent;
       color: var(--text-sub);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 2px;
       padding: 7px 10px;
       font-size: 12px;
       font-weight: 500;
@@ -259,12 +260,12 @@
     .shortcut-hints kbd {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 3px;
+      border-radius: 2px;
       padding: 1px 4px;
       color: var(--text-sub);
     }
 
-    /* Right Main Panel */
+    /* Right Main Panel (Sharp structural frame) */
     .main-panel {
       display: flex;
       flex-direction: column;
@@ -273,11 +274,11 @@
       max-width: 100%;
     }
 
-    /* Top Action Bar (Google Material Pro Toolbar) */
+    /* Top Action Bar (Sharp technical toolbar) */
     .top-action-bar {
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 2px;
       padding: 12px 16px;
       display: flex;
       justify-content: space-between;
@@ -294,18 +295,20 @@
     }
 
     .bar-title {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 700;
       color: #FFFFFF;
+      letter-spacing: 0.2px;
+      text-transform: uppercase;
     }
 
     .item-count-tag {
       background: var(--blue-muted);
       color: var(--blue);
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 600;
       padding: 1px 6px;
-      border-radius: 4px;
+      border-radius: 10px;
     }
 
     .bar-right {
@@ -319,7 +322,7 @@
       background: var(--orange);
       color: #0C0D12;
       border: none;
-      border-radius: 6px;
+      border-radius: 2px;
       padding: 6px 12px;
       font-size: 11.5px;
       font-weight: 700;
@@ -332,7 +335,7 @@
       background: var(--card);
       border: 1px solid var(--border);
       color: var(--text-sub);
-      border-radius: 6px;
+      border-radius: 2px;
       padding: 6px 10px;
       font-size: 11.5px;
       font-weight: 500;
@@ -344,11 +347,11 @@
       color: #FFFFFF;
     }
 
-    /* Smart Suggestions Bar */
+    /* Smart Suggestions Bar (Soft Capsule Chips) */
     .suggestions-container {
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: 2px;
       padding: 12px 14px;
       display: flex;
       flex-direction: column;
@@ -374,8 +377,8 @@
     .chip-item {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 4px 9px;
+      border-radius: 14px;
+      padding: 4px 10px;
       font-size: 11px;
       font-weight: 500;
       color: var(--text-sub);
@@ -391,16 +394,16 @@
       color: #FFFFFF;
     }
     .chip-item.substitute {
-      border-color: rgba(191, 90, 242, 0.35);
-      background: rgba(191, 90, 242, 0.08);
-      color: var(--purple);
+      border-color: rgba(175, 82, 222, 0.35);
+      background: rgba(175, 82, 222, 0.08);
+      color: #BF5AF2;
     }
     .chip-item.substitute:hover {
-      background: rgba(191, 90, 242, 0.18);
+      background: rgba(175, 82, 222, 0.18);
       color: #FFFFFF;
     }
 
-    /* Aisle Group Cards */
+    /* Aisle Group Cards (Sharp architectural block with color stripe) */
     .aisles-layout {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
@@ -412,7 +415,8 @@
     .aisle-block {
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-left: 3px solid var(--border-light);
+      border-radius: 2px;
       padding: 14px;
       display: flex;
       flex-direction: column;
@@ -423,6 +427,14 @@
     .aisle-block:hover {
       border-color: var(--border-light);
     }
+    .aisle-block[data-category="Produce"] { border-left-color: var(--green); }
+    .aisle-block[data-category="Dairy & Eggs"] { border-left-color: var(--blue); }
+    .aisle-block[data-category="Bakery"] { border-left-color: var(--orange); }
+    .aisle-block[data-category="Pantry"] { border-left-color: #BF5AF2; }
+    .aisle-block[data-category="Beverages"] { border-left-color: #5AC8FA; }
+    .aisle-block[data-category="Snacks"] { border-left-color: #FF2D55; }
+    .aisle-block[data-category="Personal Care"] { border-left-color: #64D2FF; }
+    .aisle-block[data-category="Household"] { border-left-color: #FFD60A; }
 
     .aisle-title-row {
       display: flex;
@@ -1105,6 +1117,7 @@
         totalCount += items.length;
         const block = document.createElement('div');
         block.className = 'aisle-block';
+        block.setAttribute('data-category', cat);
 
         const icon = CATEGORY_ICONS[cat] || '📦';
         const titleRow = document.createElement('div');
