@@ -1,93 +1,131 @@
 # Voice Shopping Assistant
 
-A hands-free, voice-enabled grocery shopping assistant that converts spoken natural language into an organized, categorized shopping list with brand resolution, smart substitutions, and direct retailer checkout links.
+A hands-free, voice-driven grocery shopping assistant that translates spoken natural language into organized, categorized shopping lists with FMCG brand resolution, dietary substitutions, price-filtered searches, and direct retailer checkout links.
 
-🌐 **Live Hosted Application:** [https://voice-shopping-unthinkable.onrender.com/](https://voice-shopping-unthinkable.onrender.com/)
-
-Available both as a **live web application (FastAPI)** and a **native desktop application (PyQt6)**.
-
----
-
-## 200-Word Engineering Summary
-
-Traditional speech-to-text pipelines struggle with grocery ordering because users speak quickly, list multiple items with mixed units in a single breath, use regional terms, and mention specific brand names that generic speech models mistranscribe. To address this, this project bypasses separate, fragile ASR steps and feeds audio directly to Google Gemini's multimodal audio API using strict structured JSON schemas and separated system instructions.
-
-On the desktop client, audio is captured at 16 kHz mono via `sounddevice` and monitored in real time using Silero VAD to automatically detect speech start and stop boundaries (hands-free endpointing). The web interface uses browser-level audio constraints (`echoCancellation`, `noiseSuppression`, `autoGainControl`) and streams WebM Opus audio directly to the FastAPI backend. 
-
-The backend validates inputs against an Indian FMCG brand taxonomy (Amul, Aashirvaad, Tata, Britannia, Fortune, MDH, Dettol, Colgate, etc.) and automatically categorizes items into Produce, Dairy & Eggs, Pantry, Bakery, and Household aisles. Validated items generate 1-click cart links to Amazon Fresh, Blinkit, Zepto, and Instamart, while returning spoken audio feedback and seasonal recommendations.
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Render_Deployment-2563EB?style=for-the-badge&logo=render&logoColor=white)](https://voice-shopping-unthinkable.onrender.com/)
+[![GitHub Repo](https://img.shields.io/badge/Source_Code-GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/meerpi/Voice_shopping_unthinkable)
 
 ---
 
-## Key Features
+## Technical Approach
 
-- **Hands-Free Voice Input:** Real-time Voice Activity Detection (Silero VAD) automatically detects when you finish speaking and processes the command without needing manual button presses.
-- **Compound Intent Parsing:** Handles complex multi-item sentences like *"Add 4 apples, 5 oranges, and 1 packet of Amul butter"* in a single utterance.
-- **Regional & FMCG Brand Disambiguation:** Recognizes popular Indian and international grocery brands (Amul, Mother Dairy, Tata, Aashirvaad, Parle-G, Britannia, Haldiram's, Surf Excel, etc.) and attaches verified brand badges.
-- **Phonetic & Hindi/Hinglish Tolerance:** Handles common accent variations and bilingual phrases like *"2 kilo aalu"*, *"1 litre doodh"*, or *"packet cheeni"*.
-- **Smart Suggestions & Substitutions:** Automatically suggests alternatives for out-of-stock or common items (e.g. Oat Milk for Whole Milk, Tofu for Paneer) and displays seasonal produce picks based on the current calendar month.
-- **1-Click Retailer Deep Links:** Generates direct search and add-to-cart URLs for Amazon Fresh, Blinkit, Zepto, Swiggy Instamart, and BigBasket.
-- **Spoken Audio Confirmations:** Reads back cart updates using text-to-speech with multi-language/accent support (`en-IN`, `en-US`, `en-GB`, `hi-IN`).
-- **Product Nutrition & Price Lookup:** Queries the Open Food Facts API for product details, Nutri-Score grades, and price estimates.
+### Problem
+Traditional voice shopping pipelines typically chain a generic Speech-to-Text (STT) engine into a separate text NLP parser. This two-stage approach suffers from compounding error rates: acoustic models mistranscribe brand names and phonetic variations, while downstream parsers fail on compound, multi-item utterances (e.g., *"Add 4 apples, 5 oranges, and 1 packet of Amul butter"*).
+
+### Solution
+We bypass intermediate text transcription by sending audio directly to Google Gemini's multimodal audio pipeline using strict Pydantic JSON schemas and decoupled system instructions. This preserves acoustic nuances, regional terminology (*aalu*, *doodh*, *cheeni*), and brand names directly from the raw audio signal.
+
+On the client side:
+- **Desktop Client:** Captures 16 kHz mono PCM via `sounddevice` with local Silero VAD for hands-free endpointing (auto-stopping after sustained silence).
+- **Web Client:** Leverages browser-level Web Audio API constraints (`noiseSuppression`, `echoCancellation`, `autoGainControl`) and streams Opus WebM audio to FastAPI.
+
+The backend validates extracted entities against an Indian FMCG brand catalog, categorizes items across 8 aisle types, queries Open Food Facts for price-filtered search, computes dynamic seasonal and substitution recommendations, and generates 1-click checkout links for Amazon Fresh, Blinkit, Zepto, and Instamart.
+
+### Key Architectural Decisions
+
+| Decision | Alternative Considered | Rationale |
+|---|---|---|
+| **Direct Multimodal Audio** | Whisper STT $\rightarrow$ LLM | Eliminates acoustic translation errors on brand names and multi-item lists. |
+| **System Instruction Separation** | In-prompt dynamic few-shots | Prevents few-shot example contamination and grounding bias during audio parsing. |
+| **Client-Side Silero VAD** | Server-side silence trimming | Enables true hands-free operation with zero latency on endpoint detection. |
+| **FMCG Brand Lexicon Layer** | Unconstrained LLM extraction | Guarantees deterministic brand tagging and direct retailer URL resolution. |
 
 ---
 
-## Architecture & How It Works
+## System Architecture
+
+```mermaid
+flowchart TD
+    subgraph ClientLayer["Client Layer"]
+        A1["Desktop Client (PyQt6)<br/>• 16kHz PCM Stream<br/>• Silero VAD Endpointing"] 
+        A2["Web Client (Vanilla JS)<br/>• MediaRecorder (Opus/WebM)<br/>• Web Audio Constraints"]
+    end
+
+    subgraph BackendLayer["FastAPI Backend Layer"]
+        B["API Gateway<br/>/api/voice-audio & /api/voice-command"]
+        C["Gemini Multimodal Pipeline<br/>• Model: gemini-flash-lite-latest<br/>• Pydantic Structured Schema<br/>• System Instruction Isolation"]
+        D["FMCG Brand & Aisle Classifier<br/>• 60+ Indian Brands Matrix<br/>• 8 Grocery Categories"]
+    end
+
+    subgraph ServicesLayer["Services & External Integrations"]
+        E["Open Food Facts API<br/>• Price Range Filtering<br/>• Nutri-Score Lookup"]
+        F["Smart Suggestion Engine<br/>• Calendar Seasonal Matrix<br/>• Dietary Substitutions<br/>• History Recommendations"]
+        G["Retailer Checkout Service<br/>• Amazon Fresh & BigBasket<br/>• Quick Commerce (Blinkit, Zepto, Instamart)"]
+        H["Speech Synthesis<br/>• Edge-TTS / Web Speech API"]
+    end
+
+    A1 -->|Raw Audio Stream| B
+    A2 -->|WebM Opus Blob| B
+    B --> C
+    C --> D
+    D --> E
+    D --> F
+    D --> G
+    D --> H
+```
+
+---
+
+## Features
+
+### 1. Hands-Free Voice Input & Compound Parsing
+- **Zero-Touch Recording:** Silero VAD automatically detects speech onset and closes the recording buffer after 800–1200ms of silence.
+- **Compound Commands:** Accurately extracts multiple items, quantities, and units in a single breath (e.g., *"Add 2 kg potatoes, 1 litre milk, and 3 loaves of bread"*).
+- **Multilingual & Accent Tolerance:** Handles Indian English accents and common regional grocery vocabulary (*tamatar*, *pyaaz*, *paneer*, *atta*).
+
+### 2. Smart Suggestions & Dietary Substitutions
+- **Dietary Substitutions:** Automatically suggests alternatives when dairy, gluten, or common staples are added (e.g., suggests Oat Milk / Almond Milk when adding regular Milk).
+- **Seasonal Recommendations:** Queries the current calendar month to display in-season produce (e.g., Watermelon and Sweet Corn in Summer; Squash and Pomegranates in Autumn).
+- **History-Based Restock Alerts:** Identifies complementary basket items based on current cart contents.
+
+### 3. Voice-Activated Search & Price Filtering
+- **Faceted Product Search:** Allows users to query specific brands or items (e.g., *"Find organic green tea"*).
+- **Price Range Constraints:** Parses price caps from speech (e.g., *"Find toothpaste under $5"*) and queries the Open Food Facts API with server-side price filtering.
+
+### 4. Retailer Checkout Integration
+- Generates 1-click pre-filled search and cart staging links for:
+  - **Quick Commerce:** Blinkit, Zepto, Swiggy Instamart
+  - **Hypermarket:** Amazon Fresh, BigBasket
+
+---
+
+## Project Structure
 
 ```
-[ Microphones / Web Audio ]
-           │
-           ▼
-[ Client-Side Audio Capture ]
-   ├── Desktop: sounddevice 16kHz PCM stream + Silero VAD
-   └── Web: MediaRecorder (Opus/WebM) + Web Audio API
-           │
-           ▼
-[ FastAPI Backend / Python Controller ]
-   ├── Audio Validation & Formatting
-   └── Gemini Multimodal Pipeline (Structured Output Schema)
-           │
-           ├── Intent Extraction (ADD / REMOVE / SEARCH / CLEAR)
-           ├── FMCG Brand & Aisle Categorization
-           └── Quantity & Unit Normalization
-           │
-           ▼
-[ Post-Processing & Integration ]
-   ├── Open Food Facts API (Nutritional data & search)
-   ├── Smart Substitution Engine (Heuristic + Seasonal graph)
-   ├── Retailer Direct Linking (Amazon, Blinkit, Zepto, Instamart)
-   └── Text-to-Speech Feedback (Edge-TTS / Web Speech API)
+.
+├── app.py                   # FastAPI application, Gemini pipeline, brand lexicon & endpoints
+├── desktop_app.py           # Native PyQt6 GUI with real-time Silero VAD streaming
+├── retailer_cart_service.py # Retailer deep-link generator (Amazon, Blinkit, Zepto, etc.)
+├── tts_service.py           # Asynchronous text-to-speech engine
+├── static/                  # Responsive Web UI
+│   ├── index.html           # Single-page web application UI
+│   └── manifest.json        # PWA manifest
+├── .devcontainer/           # Codespaces devcontainer with automated FFmpeg installation
+├── requirements.txt         # Pinned Python package dependencies
+├── .env.example             # Environment variable template
+└── README.md                # System documentation
 ```
 
 ---
 
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Backend & API** | Python 3.10+, FastAPI, Uvicorn, Pydantic v2 |
-| **Desktop Client** | PyQt6, QThread, sounddevice, NumPy |
-| **Web Client** | HTML5, Vanilla JavaScript, CSS3, Web Audio API |
-| **Speech & LLM** | Google GenAI SDK (`gemini-flash-lite-latest`), Silero VAD, PyTorch |
-| **Audio Tools** | FFmpeg, SciPy, noisereduce |
-| **External APIs** | Open Food Facts REST API |
-| **Voice Synthesis** | Edge-TTS, gTTS, Web Speech Synthesis API |
-
----
-
-## Getting Started
+## Installation & Local Setup
 
 ### Prerequisites
-- Python 3.10 or higher
-- `ffmpeg` installed and available on your system PATH
-- A Google AI Studio Gemini API Key (free tier available at [aistudio.google.com](https://aistudio.google.com/))
+- **Python 3.10+**
+- **FFmpeg** installed and accessible on system `PATH`
+- **Gemini API Key** from [Google AI Studio](https://aistudio.google.com/)
 
-### 1. Clone & Install Dependencies
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/meerpi/Voice_shopping_unthinkable.git
 cd Voice_shopping_unthinkable
+```
 
-# Create and activate a virtual environment
+### 2. Environment Setup
+
+```bash
+# Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
@@ -95,10 +133,7 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment Variables
-
-Create a `.env` file in the project root:
-
+Create a `.env` file in the root directory:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
@@ -107,58 +142,39 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 ## Running the Application
 
-### Option A: Web Application
-Start the FastAPI server:
-
+### Web Application (FastAPI)
 ```bash
 python -m uvicorn app:app --host 127.0.0.1 --port 8000 --reload
 ```
+Open `http://localhost:8000` in your browser.
 
-Open `http://localhost:8000` in your web browser. Click the voice orb and speak your grocery items.
-
-### Option B: Desktop GUI
-Launch the PyQt6 native desktop app:
-
+### Desktop Application (PyQt6)
 ```bash
 python desktop_app.py
 ```
 
-The desktop app runs fully hands-free — click the mic orb once to start listening, and it will continuously process commands as you speak.
+---
+
+## Sample Test Commands
+
+| Voice / Text Input | Extracted Entities | Assigned Category | Suggested Substitutes / Actions |
+|---|---|---|---|
+| *"Add 4 apples and 5 oranges"* | `Apples` (qty: 4), `Oranges` (qty: 5) | Produce | Direct retailer links |
+| *"Get 1 packet Amul butter and 2 packets bread"* | `Amul Butter` (qty: 1), `Bread` (qty: 2) | Dairy & Eggs, Bakery | `🔄 Try Ghee`, `🔄 Try Sourdough` |
+| *"Add 2 kg Aashirvaad atta and 1 bottle Fortune oil"* | `Aashirvaad Atta` (qty: 2 kg), `Fortune Oil` (qty: 1 bottle) | Pantry | Brand Badges `[AASHIRVAAD]`, `[FORTUNE]` |
+| *"Find Colgate toothpaste under $5"* | Search: `Colgate Toothpaste`, Max Price: `$5.00` | Personal Care | Open Food Facts filtered catalog results |
+| *"Remove apples"* | `Apples` | Produce | Cart removal confirmation |
+| *"Clear my shopping list"* | Cart reset | — | Cart cleared confirmation |
 
 ---
 
-## Example Voice Commands
+## Assessment Deliverables Summary
 
-| Command | Action Taken |
-|---|---|
-| *"Add 4 apples and 5 oranges"* | Adds 4 Apples and 5 Oranges to **Produce** |
-| *"Get 1 packet Amul butter and 2 packets bread"* | Adds Amul Butter (`[AMUL]`) to **Dairy & Eggs** and Bread to **Bakery** |
-| *"Buy 2 kg Aashirvaad atta and 1 litre Fortune oil"* | Adds Atta and Oil with brand tags to **Pantry** |
-| *"Remove apples"* | Removes Apples from the shopping list |
-| *"Find Colgate toothpaste under 5 dollars"* | Searches Open Food Facts for Colgate items filtered by price |
-| *"Clear my cart"* | Empties the shopping list |
-
----
-
-## Project Structure
-
-```
-.
-├── app.py                   # FastAPI backend, Gemini pipeline, brand & category logic
-├── desktop_app.py           # PyQt6 desktop GUI with hands-free Silero VAD audio capture
-├── retailer_cart_service.py # Retailer deep-link generator (Amazon, Blinkit, Zepto, etc.)
-├── tts_service.py           # Text-to-speech audio feedback generator
-├── static/                  # Web frontend assets
-│   ├── index.html           # Single-page web application UI
-│   └── manifest.json        # Web app manifest
-├── .devcontainer/           # GitHub Codespaces container setup with auto-configured FFmpeg
-├── requirements.txt         # Pinned Python package dependencies
-├── .env.example             # Example environment variable file
-└── README.md                # Project documentation
-```
+1. **Hosted Web Application:** [https://voice-shopping-unthinkable.onrender.com/](https://voice-shopping-unthinkable.onrender.com/)
+2. **GitHub Repository:** [https://github.com/meerpi/Voice_shopping_unthinkable](https://github.com/meerpi/Voice_shopping_unthinkable)
+3. **Approach Write-Up (200 Words):** Documented under [Technical Approach](#technical-approach).
 
 ---
 
 ## License
-
-This project is licensed under the MIT License.
+MIT License. Free for evaluation and non-commercial development.
