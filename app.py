@@ -362,47 +362,34 @@ FLASH_MODELS = [
     "gemini-flash-latest"
 ]
 
-EXPANDED_GROCERY_PROMPT = """
-You are a voice shopping assistant that transcribes audio and extracts grocery items.
+# ─── PROMPT ENGINEERING (research-backed) ───
+# Key insight: system_instruction is separated from content to prevent
+# instruction contamination and transcription bias. No product-specific
+# examples are included — they cause the model to hallucinate those products
+# instead of transcribing what it actually hears.
 
-CRITICAL RULES:
-1. TRANSCRIBE the audio EXACTLY as spoken. Write every word you hear in the transcript field.
-2. Extract ALL items mentioned. Users often say multiple items in one sentence like "4 apples and 5 mangos" — you MUST extract EACH item separately with its own quantity.
-3. If a number precedes an item name, that number is the quantity.
-4. Default quantity is 1 if no number is said.
-5. Set intent to "ADD" for adding items, "REMOVE" for removing, "CLEAR" for clearing cart.
+SYSTEM_INSTRUCTION = """You are a grocery shopping voice assistant for Indian users.
 
-Brand Disambiguation (Indian FMCG):
-- Dairy: Amul, Mother Dairy, Nandini, Epigamia, Milma
-- Pantry: Tata, Aashirvaad, India Gate, Daawat, Fortune, MDH, Everest
-- Beverages: Tata Tea, Red Label, Nescafe, Bru
-- Snacks: Parle-G, Britannia, Haldiram's, Maggi, Lays
-- Personal: Colgate, Dettol, Dabur, Himalaya
-- Household: Surf Excel, Vim, Harpic
+<role>
+Your job has two parts:
+1. TRANSCRIBE: Write exactly what you hear in the audio. The audio is the ONLY source of truth. Never guess or substitute words. If you cannot hear clearly, write what you hear phonetically.
+2. EXTRACT: From your transcription, extract each grocery item with its quantity, unit, category, and brand (if mentioned).
+</role>
 
-Category Assignment:
-- Fruits & Vegetables → "Produce"
-- Milk, Butter, Cheese, Eggs, Paneer, Ghee, Curd → "Dairy & Eggs"
-- Rice, Atta, Dal, Oil, Spices, Pasta → "Pantry"
-- Bread, Roti, Buns → "Bakery"
-- Tea, Coffee, Juice → "Beverages"
-- Chips, Biscuits, Namkeen → "Snacks"
-- Soap, Shampoo, Toothpaste → "Personal Care"
-- Detergent, Cleaner → "Household"
+<rules>
+- Extract EVERY item mentioned. Users often list multiple items in one utterance.
+- If a number precedes a product name, that is the quantity.
+- Default quantity is 1 if no number is spoken.
+- Assign each item to exactly one category from: Produce, Dairy & Eggs, Meat & Seafood, Pantry, Bakery, Frozen, Beverages, Snacks, Household, Personal Care.
+- If a known Indian brand is mentioned (e.g. Amul, Tata, Aashirvaad, Fortune, MDH, Haldiram's, Parle, Britannia, Colgate, Dettol, Surf Excel, Maggi, Nescafe), set brand_hint to that brand.
+- Tolerate Indian English accents and Hindi words: "aalu"=Potatoes, "doodh"=Milk, "cheeni"=Sugar, "anda"=Eggs, "chawal"=Rice, "atta"=Flour, "sabzi"=Vegetables, "pyaaz"=Onions, "tamatar"=Tomatoes.
+- intent should be "ADD" when adding items, "REMOVE" when removing, "CLEAR" when clearing cart, "SEARCH" when searching.
+- feedback_message should naturally confirm what was added.
+</rules>"""
 
-Phonetic Tolerance (Indian English accent):
-- 'aappals' / 'appels' → Apples
-- 'maangos' / 'mangoz' → Mangoes
-- 'ek kilo aalu' → Potatoes (1 kg)
-- 'do litre doodh' → Milk (2 litres)
+AUDIO_CONTENT_PROMPT = "Listen to this audio carefully. Transcribe exactly what was said, then extract all grocery items mentioned."
 
-Multi-item Examples:
-- "4 apples and 5 mangos" → items_to_add: [{Apples, qty:4}, {Mangoes, qty:5}]
-- "get milk bread and eggs" → items_to_add: [{Milk, qty:1}, {Bread, qty:1}, {Eggs, qty:1}]
-- "2 kg rice and 1 packet Amul butter" → items_to_add: [{Rice, qty:2, unit:kg}, {Butter, qty:1, unit:pack, brand:Amul}]
-
-feedback_message should be a natural confirmation like "Added 4 apples and 5 mangoes to your cart."
-"""
+TEXT_CONTENT_TEMPLATE = 'The user typed: "{transcript}"\n\nExtract all grocery items mentioned.'
 
 @app.post("/api/voice-audio")
 async def process_voice_audio(file: UploadFile = File(...)):
@@ -422,7 +409,6 @@ async def process_voice_audio(file: UploadFile = File(...)):
 
     cart_keys = list(cart.items.keys())
     cart_context = f"Current Cart: {', '.join(cart_keys)}" if cart_keys else "Cart is empty."
-    full_prompt = f"{EXPANDED_GROCERY_PROMPT}\n\n{cart_context}"
 
     diag = {"raw_bytes": len(audio_bytes)}
     parsed_cmd = None
@@ -431,13 +417,18 @@ async def process_voice_audio(file: UploadFile = File(...)):
     if gemini_client:
         # STRATEGY 1: Send raw browser audio directly to Gemini.
         # Gemini natively understands WebM Opus — no DSP needed.
+        # system_instruction is separated from content per Google best practices.
         for m in FLASH_MODELS:
             try:
                 logger.info(f"Trying raw audio with model {m}")
                 res = gemini_client.models.generate_content(
                     model=m,
-                    contents=[full_prompt, types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)],
+                    contents=[
+                        f"{AUDIO_CONTENT_PROMPT}\n{cart_context}",
+                        types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)
+                    ],
                     config=types.GenerateContentConfig(
+                        system_instruction=SYSTEM_INSTRUCTION,
                         response_mime_type="application/json",
                         response_schema=VoiceCommandResult,
                         temperature=0.1
@@ -468,8 +459,12 @@ async def process_voice_audio(file: UploadFile = File(...)):
                         logger.info(f"Trying enhanced audio with model {m}")
                         res = gemini_client.models.generate_content(
                             model=m,
-                            contents=[full_prompt, types.Part.from_bytes(data=enhanced_bytes, mime_type="audio/webm")],
+                            contents=[
+                                f"{AUDIO_CONTENT_PROMPT}\n{cart_context}",
+                                types.Part.from_bytes(data=enhanced_bytes, mime_type="audio/webm")
+                            ],
                             config=types.GenerateContentConfig(
+                                system_instruction=SYSTEM_INSTRUCTION,
                                 response_mime_type="application/json",
                                 response_schema=VoiceCommandResult,
                                 temperature=0.1
@@ -537,7 +532,6 @@ async def process_voice_command(payload: Dict):
 
     cart_keys = list(cart.items.keys())
     cart_context = f"Current Cart: {', '.join(cart_keys)}" if cart_keys else "Cart is empty."
-    full_prompt = f"{EXPANDED_GROCERY_PROMPT}\n\n{cart_context}\nUser Spoken Text: \"{transcript}\""
 
     parsed_cmd = None
     if gemini_client:
@@ -545,8 +539,9 @@ async def process_voice_command(payload: Dict):
             try:
                 res = gemini_client.models.generate_content(
                     model=m,
-                    contents=full_prompt,
+                    contents=f"{TEXT_CONTENT_TEMPLATE.format(transcript=transcript)}\n{cart_context}",
                     config=types.GenerateContentConfig(
+                        system_instruction=SYSTEM_INSTRUCTION,
                         response_mime_type="application/json",
                         response_schema=VoiceCommandResult,
                         temperature=0.1

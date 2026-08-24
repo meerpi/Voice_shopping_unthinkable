@@ -21,7 +21,9 @@ from app import (
     enhance_audio,
     VoiceCommandResult,
     FLASH_MODELS,
-    EXPANDED_GROCERY_PROMPT,
+    SYSTEM_INSTRUCTION,
+    AUDIO_CONTENT_PROMPT,
+    TEXT_CONTENT_TEMPLATE,
     gemini_client,
     _get_vad_model
 )
@@ -423,16 +425,25 @@ class CommandResultWorker(QThread):
             cart_context = f"Current Cart: {', '.join(cart_keys)}" if cart_keys else "Cart is empty."
 
             if self.mode == 'AUDIO':
-                contents = [f"{EXPANDED_GROCERY_PROMPT}\n\n{cart_context}", types.Part.from_bytes(data=send_bytes, mime_type=send_mime)]
+                contents = [
+                    f"{AUDIO_CONTENT_PROMPT}\n{cart_context}",
+                    types.Part.from_bytes(data=send_bytes, mime_type=send_mime)
+                ]
             else:
-                contents = f"{EXPANDED_GROCERY_PROMPT}\n\n{cart_context}\nUser Spoken Text: \"{self.payload}\""
+                contents = f"{TEXT_CONTENT_TEMPLATE.format(transcript=self.payload)}\n{cart_context}"
 
             parsed_cmd = None
             for m in FLASH_MODELS:
                 try:
                     res = gemini_client.models.generate_content(
-                        model=m, contents=contents,
-                        config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=VoiceCommandResult, temperature=0.1)
+                        model=m,
+                        contents=contents,
+                        config=types.GenerateContentConfig(
+                            system_instruction=SYSTEM_INSTRUCTION,
+                            response_mime_type="application/json",
+                            response_schema=VoiceCommandResult,
+                            temperature=0.1
+                        )
                     )
                     parsed_cmd = VoiceCommandResult.model_validate_json(res.text)
                     break
