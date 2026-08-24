@@ -387,45 +387,95 @@ Parse into structured VoiceCommandResult with conversational feedback_message.
 
 @app.post("/api/voice-audio")
 async def process_voice_audio(file: UploadFile = File(...)):
+    import logging
+    logger = logging.getLogger("voice_audio")
+
     audio_bytes = await file.read()
     mime_type = file.content_type or "audio/webm"
+    logger.info(f"Received audio: {len(audio_bytes)} bytes, mime={mime_type}")
 
+    # Save raw recording for debugging
     try:
-        send_bytes, diag = enhance_audio(audio_bytes)
-        send_mime = "audio/webm"
+        with open("debug_audio/last_recording.webm", "wb") as f:
+            f.write(audio_bytes)
     except Exception:
-        send_bytes, send_mime, diag = audio_bytes, mime_type, {}
+        pass
 
     cart_keys = list(cart.items.keys())
     cart_context = f"Current Cart: {', '.join(cart_keys)}" if cart_keys else "Cart is empty."
     full_prompt = f"{EXPANDED_GROCERY_PROMPT}\n\n{cart_context}"
 
+    diag = {"raw_bytes": len(audio_bytes)}
     parsed_cmd = None
+    last_error = ""
+
     if gemini_client:
+        # STRATEGY 1: Send raw browser audio directly to Gemini.
+        # Gemini natively understands WebM Opus — no DSP needed.
         for m in FLASH_MODELS:
             try:
+                logger.info(f"Trying raw audio with model {m}")
                 res = gemini_client.models.generate_content(
                     model=m,
-                    contents=[full_prompt, types.Part.from_bytes(data=send_bytes, mime_type=send_mime)],
+                    contents=[full_prompt, types.Part.from_bytes(data=audio_bytes, mime_type=mime_type)],
                     config=types.GenerateContentConfig(
                         response_mime_type="application/json",
                         response_schema=VoiceCommandResult,
                         temperature=0.1
                     )
                 )
-                parsed_cmd = VoiceCommandResult.model_validate_json(res.text)
-                break
-            except Exception:
+                candidate = VoiceCommandResult.model_validate_json(res.text)
+                # Only accept if Gemini actually heard something
+                if candidate.transcript and candidate.transcript.strip() and candidate.items_to_add:
+                    parsed_cmd = candidate
+                    diag["method"] = f"raw_audio_{m}"
+                    logger.info(f"Raw audio success with {m}: '{candidate.transcript}'")
+                    break
+                else:
+                    logger.info(f"Raw audio {m} returned empty transcript, trying next")
+                    last_error = f"{m}: empty transcript"
+            except Exception as e:
+                last_error = f"{m}: {type(e).__name__}: {str(e)[:100]}"
+                logger.warning(f"Raw audio {m} failed: {last_error}")
                 continue
 
+        # STRATEGY 2: If raw didn't work, try DSP-enhanced audio
+        if not parsed_cmd:
+            try:
+                enhanced_bytes, enhance_diag = enhance_audio(audio_bytes)
+                diag.update(enhance_diag)
+                for m in FLASH_MODELS[:2]:
+                    try:
+                        logger.info(f"Trying enhanced audio with model {m}")
+                        res = gemini_client.models.generate_content(
+                            model=m,
+                            contents=[full_prompt, types.Part.from_bytes(data=enhanced_bytes, mime_type="audio/webm")],
+                            config=types.GenerateContentConfig(
+                                response_mime_type="application/json",
+                                response_schema=VoiceCommandResult,
+                                temperature=0.1
+                            )
+                        )
+                        candidate = VoiceCommandResult.model_validate_json(res.text)
+                        if candidate.transcript and candidate.transcript.strip() and candidate.items_to_add:
+                            parsed_cmd = candidate
+                            diag["method"] = f"enhanced_audio_{m}"
+                            logger.info(f"Enhanced audio success with {m}: '{candidate.transcript}'")
+                            break
+                    except Exception as e:
+                        logger.warning(f"Enhanced audio {m} failed: {e}")
+                        continue
+            except Exception as e:
+                logger.warning(f"Audio enhancement itself failed: {e}")
+
     if not parsed_cmd:
-        # Robust audio fallback
+        logger.error(f"All audio processing failed. Last error: {last_error}")
         parsed_cmd = VoiceCommandResult(
-            intent="ADD",
+            intent="UNKNOWN",
             detected_language="en",
-            transcript="Spoken grocery item",
-            items_to_add=[ExtractedItem(product_name="Groceries", quantity=1.0, unit="item", category="Produce")],
-            feedback_message="Added item to list."
+            transcript="",
+            items_to_add=[],
+            feedback_message=f"Could not understand speech. Please try again or type your items. ({last_error})"
         )
 
     messages, suggested_subs, search_results = [], [], []
