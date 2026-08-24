@@ -12,23 +12,22 @@
   
   <style>
     :root {
-      --bg: #0C0D12;
-      --panel: #13151D;
-      --card: #181A24;
-      --card-hover: #1E212E;
-      --border: #232736;
-      --border-light: #2E3346;
+      --bg: #141416;
+      --panel: #1D1E22;
+      --card: #25272E;
+      --card-hover: #2E303A;
+      --border: #32353E;
+      --border-light: #414552;
       
-      --text-main: #F2F3F7;
-      --text-sub: #969BAE;
-      --text-muted: #62677C;
+      --text-main: #FFFFFF;
+      --text-sub: #A1A4B0;
+      --text-muted: #6B7082;
       
-      --blue: #0A84FF;
-      --blue-muted: rgba(10, 132, 255, 0.12);
-      --green: #30D158;
-      --orange: #FF9F0A;
-      --red: #FF453A;
-      --purple: #BF5AF2;
+      --blue: #0071E3;
+      --blue-muted: rgba(0, 113, 227, 0.12);
+      --green: #34C759;
+      --orange: #FF9500;
+      --red: #FF3B30;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -835,11 +834,11 @@
         const r = baseRadius + (i * 8) + (currentEnergy * 16 * (i / ringCount));
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
         if (isRecording) {
-          ctx.strokeStyle = `rgba(10, 132, 255, ${0.12 * (1 / i)})`;
-          ctx.fillStyle = `rgba(10, 132, 255, ${0.03 * (1 / i)})`;
+          ctx.strokeStyle = `rgba(0, 113, 227, ${0.18 * (1 / i)})`;
+          ctx.fillStyle = `rgba(0, 113, 227, ${0.04 * (1 / i)})`;
         } else if (isSpeaking) {
-          ctx.strokeStyle = `rgba(48, 209, 88, ${0.12 * (1 / i)})`;
-          ctx.fillStyle = `rgba(48, 209, 88, ${0.03 * (1 / i)})`;
+          ctx.strokeStyle = `rgba(52, 199, 89, ${0.18 * (1 / i)})`;
+          ctx.fillStyle = `rgba(52, 199, 89, ${0.04 * (1 / i)})`;
         } else {
           ctx.strokeStyle = `rgba(255, 255, 255, ${0.04 * (1 / i)})`;
           ctx.fillStyle = `rgba(255, 255, 255, 0.01)`;
@@ -853,26 +852,26 @@
       ctx.beginPath();
       ctx.arc(cx, cy, baseRadius, 0, Math.PI * 2);
       if (isRecording) {
-        ctx.fillStyle = '#0A84FF';
+        ctx.fillStyle = '#0071E3';
       } else if (isSpeaking) {
-        ctx.fillStyle = '#30D158';
+        ctx.fillStyle = '#34C759';
       } else {
-        ctx.fillStyle = '#1C1F2B';
+        ctx.fillStyle = '#2C2D35';
       }
       ctx.fill();
-      ctx.strokeStyle = isRecording ? '#5AC8FA' : '#2A2E3F';
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = isRecording ? '#47A3FF' : '#3F4352';
+      ctx.lineWidth = 1.2;
       ctx.stroke();
 
       // Microphone Glyph
-      ctx.fillStyle = isRecording || isSpeaking ? '#FFFFFF' : '#969BAE';
+      ctx.fillStyle = '#FFFFFF';
       ctx.beginPath();
       ctx.roundRect(cx - 3, cy - 7, 6, 9, 3);
       ctx.fill();
       ctx.beginPath();
       ctx.arc(cx, cy - 2, 5, 0, Math.PI);
       ctx.lineWidth = 1.6;
-      ctx.strokeStyle = isRecording || isSpeaking ? '#FFFFFF' : '#969BAE';
+      ctx.strokeStyle = '#FFFFFF';
       ctx.stroke();
 
       requestAnimationFrame(renderVoiceOrb);
