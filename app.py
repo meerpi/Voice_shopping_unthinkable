@@ -355,12 +355,11 @@ async def search_open_food_facts(query: str, max_price: Optional[float] = None, 
         return [{"name": query.title(), "brand": "Generic Brand", "price": "$3.50", "nutriscore": "A"}]
 
 FLASH_MODELS = [
-    "gemini-3.6-flash",
-    "gemini-flash-latest",
-    "gemini-3.5-flash",
-    "gemini-3.7-flash",
     "gemini-flash-lite-latest",
-    "gemini-3.5-flash-lite"
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-3.6-flash",
+    "gemini-flash-latest"
 ]
 
 EXPANDED_GROCERY_PROMPT = """
