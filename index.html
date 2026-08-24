@@ -521,7 +521,7 @@
     /* Aisles Grid */
     .aisles-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 255px), 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 310px), 1fr));
       gap: 14px;
       width: 100%;
       min-width: 0;
@@ -573,7 +573,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       padding: 6px 0;
       min-width: 0;
       border-bottom: 1px solid rgba(255, 255, 255, 0.02);
@@ -594,6 +594,8 @@
       align-items: center;
       gap: 8px;
       min-width: 0;
+      flex: 1 1 auto;
+      flex-wrap: wrap;
     }
 
     .item-checkbox {
@@ -629,7 +631,8 @@
       color: #FFFFFF;
       font-size: 13px;
       font-weight: 600;
-      word-break: break-word;
+      word-break: normal;
+      overflow-wrap: break-word;
     }
 
     .brand-badge {
@@ -643,6 +646,7 @@
       letter-spacing: 0.5px;
       text-transform: uppercase;
       white-space: nowrap;
+      flex-shrink: 0;
     }
 
     .item-stepper-actions {
@@ -650,6 +654,7 @@
       align-items: center;
       gap: 6px;
       flex-shrink: 0;
+      margin-left: auto;
     }
 
     .stepper-wrap {
